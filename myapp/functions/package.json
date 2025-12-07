@@ -1,0 +1,21 @@
+{
+  "name": "kantor-netlify-functions",
+  "version": "1.0.0",
+  "description": "Backend functions for the Kantor application.",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "deploy": "npm run build"
+  },
+  "dependencies": {
+    "@netlify/functions": "^2.6.0",
+    "pg": "^8.11.3",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.2",
+    "@types/node": "^20.12.7",
+    "@types/dotenv": "^8.2.0",
+    "typescript": "^5.4.5"
+  }
+}

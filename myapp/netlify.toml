@@ -1,0 +1,7 @@
+[build]
+  command = "npm run build"
+  publish = "web-build" # Zmień na katalog, w którym Expo tworzy build (np. 'dist')
+
+[functions]
+  directory = "functions/dist" 
+  node_bundler = "esbuild"
