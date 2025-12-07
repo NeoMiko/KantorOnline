@@ -5,3 +5,7 @@
 [functions]
   directory = "functions/dist" 
   node_bundler = "esbuild"
+
+[dev]
+  targetPort = 8081 
+  port = 8888
