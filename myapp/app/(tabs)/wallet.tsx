@@ -14,10 +14,14 @@ export default function WalletScreen() {
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
 
   useEffect(() => {
-    if (isAuthenticated) {
-        dispatch(fetchWalletBalances()); 
+    let isMounted = true;
+
+    if (isAuthenticated && isMounted) {
+        dispatch(fetchWalletBalances());
     }
-  }, [isAuthenticated, dispatch]);
+
+    return () => { isMounted = false; };
+}, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return (
