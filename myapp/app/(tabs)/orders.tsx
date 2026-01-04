@@ -15,7 +15,7 @@ interface OrderSection {
 export default function OrdersScreen() {
     const dispatch = useDispatch<AppDispatch>();
     
-    // Pobieramy dane z Reduxa
+   
     const { pendingOrders, history, isLoading, error } = useSelector((state: RootState) => state.orders);
     
 
@@ -24,7 +24,7 @@ export default function OrdersScreen() {
         { title: 'Historia Zleceń', data: history },
     ];
 
-    // --- Komponent do wyświetlania pojedynczego zlecenia ---
+   
     const OrderItem = ({ order }: { order: Order }) => {
         const isPending = order.status === 'OCZEKUJACE';
         const actionType = order.typ === 'KUPNO' ? 'Kupuje' : 'Sprzedaje';

@@ -14,10 +14,10 @@ export default function ExchangeScreen() {
   const { rates, isLoading, error, lastUpdated } = useSelector((state: RootState) => state.rates);
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
 
-  // Efekt wywoływany przy załadowaniu komponentu i zmianie statusu autoryzacji
+
   useEffect(() => {
     if (isAuthenticated) {
-        // Wywołanie asynchronicznej akcji Thunk pobierającej kursy z Netlify Function
+      
         dispatch(fetchCurrentRates()); 
     } else {
         console.log("Użytkownik nie jest uwierzytelniony.");
@@ -25,7 +25,7 @@ export default function ExchangeScreen() {
   }, [isAuthenticated, dispatch]);
 
 
-  // --- Stan Wyświetlania Danych ---
+ --
 
   if (!isAuthenticated) {
     return (
