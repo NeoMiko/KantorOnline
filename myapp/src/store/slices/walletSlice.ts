@@ -12,11 +12,7 @@ interface WalletState {
 }
 
 const initialState: WalletState = {
-  balances: [
-    { waluta_skrot: "PLN", saldo: 15000.0 },
-    { waluta_skrot: "EUR", saldo: 250.5 },
-    { waluta_skrot: "USD", saldo: 100.0 },
-  ],
+  balances: [],
   isLoading: false,
   error: null,
 };
@@ -25,8 +21,17 @@ const walletSlice = createSlice({
   name: "wallet",
   initialState,
   reducers: {
-    setBalances: (state, action: PayloadAction<Balance[]>) => {
-      state.balances = action.payload;
+    setBalances: (
+      state,
+      action: PayloadAction<{
+        balances: Balance[];
+        isLoading: boolean;
+        error: string | null;
+      }>
+    ) => {
+      state.balances = action.payload.balances;
+      state.isLoading = action.payload.isLoading;
+      state.error = action.payload.error;
     },
   },
 });

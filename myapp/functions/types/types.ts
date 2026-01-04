@@ -4,15 +4,20 @@ import {
   HandlerContext,
 } from "@netlify/functions";
 
-export interface Rate {
+export { HandlerResponse, HandlerEvent, HandlerContext };
+export interface Balance {
   waluta_skrot: string;
-  kurs_kupna: number;
-  kurs_sprzedazy: number;
+  saldo: number;
 }
-
-export interface RatesApiResponse {
-  date: string;
-  rates: Rate[];
+export interface Transaction {
+  id: number;
+  typ: string;
+  waluta_z: string;
+  waluta_do: string;
+  kwota_z: number;
+  kwota_do: number;
+  kurs: number;
+  data: string;
 }
 
 export type Handler = (

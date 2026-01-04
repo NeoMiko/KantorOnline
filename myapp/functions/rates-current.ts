@@ -1,49 +1,38 @@
-import { Handler, RatesApiResponse, Rate } from "./types/types";
+import { HandlerResponse } from "@netlify/functions";
 import { query } from "./utils/db";
+import { Transaction } from "./types/types";
 
-interface RateRow {
-  currency_code: string;
-  buy_rate: number;
-  sell_rate: number;
-}
-
-const ratesCurrentLogic = async (): Promise<RatesApiResponse> => {
-  const ratesData: RateRow[] = [
-    { currency_code: "USD", buy_rate: 4.0512, sell_rate: 4.1567 },
-    { currency_code: "EUR", buy_rate: 4.4988, sell_rate: 4.5932 },
-    { currency_code: "CHF", buy_rate: 4.6, sell_rate: 4.6811 },
-  ];
-
-  const rates: Rate[] = ratesData.map((row) => ({
-    waluta_skrot: row.currency_code,
-    kurs_kupna: row.buy_rate,
-    kurs_sprzedazy: row.sell_rate,
-  }));
-
-  return {
-    date: new Date().toISOString(),
-    rates: rates,
-  };
-};
-
-export const handler: Handler = async (event, context) => {
+export const handler = async (): Promise<HandlerResponse> => {
   try {
-    const responseData = await ratesCurrentLogic();
+    const nbpResponse = await fetch(
+      "https://api.nbp.pl/api/exchangerates/tables/a/?format=json"
+    );
+    const nbpData = await nbpResponse.json();
+
+    const nbpRates = nbpData[0].rates;
+    const date = nbpData[0].effectiveDate;
+
+    const interestCurrencies = ["USD", "EUR", "CHF", "GBP"];
+    const spread = 0.05;
+
+    const rates: Transaction[] = nbpRates
+      .filter((r: any) => interestCurrencies.includes(r.code))
+      .map((r: any) => ({
+        waluta_skrot: r.code,
+        kurs_kupna: r.mid - spread,
+        kurs_sprzedazy: r.mid + spread,
+      }));
 
     return {
       statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(responseData),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date, rates }),
     };
   } catch (error) {
-    console.error("Błąd pobierania kursów:", error);
+    console.error("Błąd NBP:", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({
-        message: "Błąd serwera podczas pobierania kursów.",
-      }),
+      body: JSON.stringify({ message: "Nie udało się pobrać kursów z NBP." }),
     };
   }
 };
