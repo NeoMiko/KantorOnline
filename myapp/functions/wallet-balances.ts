@@ -1,29 +1,30 @@
-import { HandlerResponse } from "@netlify/functions";
+import { HandlerResponse, HandlerEvent } from "@netlify/functions";
 import { authenticatedHandler } from "./utils/auth-middleware";
 import { query } from "./utils/db";
-import { Balance, Handler } from "./types/types";
-import { QueryResultRow } from "pg";
+import { Handler } from "./types/types";
 
-const walletBalancesLogic: Handler = async (event, context) => {
+const walletHandler: Handler = async (
+  event: HandlerEvent
+): Promise<HandlerResponse> => {
   try {
-    const sql = `SELECT waluta_skrot, ilosc FROM temp_balances ORDER BY waluta_skrot;`;
-
-    const result = await query<Balance & QueryResultRow>(sql);
+    const result = await query(
+      "SELECT waluta_skrot, saldo FROM temp_balances ORDER BY waluta_skrot ASC"
+    );
 
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ balances: result.rows }),
     };
-  } catch (error) {
-    console.error("Błąd pobierania sald:", error);
+  } catch (error: any) {
+    console.error("Błąd bazy danych (wallet-balances):", error.message);
     return {
       statusCode: 500,
       body: JSON.stringify({
-        message: "Błąd serwera podczas pobierania sald.",
+        message: "Nie udało się pobrać sald z bazy danych.",
       }),
     };
   }
 };
 
-export const handler = authenticatedHandler(walletBalancesLogic);
+export const handler = authenticatedHandler(walletHandler);
