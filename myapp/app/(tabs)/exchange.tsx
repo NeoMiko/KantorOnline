@@ -25,7 +25,7 @@ export default function ExchangeScreen() {
   }, [isAuthenticated, dispatch]);
 
 
- --
+  // --- Stan Wyświetlania Danych ---
 
   if (!isAuthenticated) {
     return (
