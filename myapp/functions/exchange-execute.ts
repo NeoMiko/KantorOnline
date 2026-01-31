@@ -1,43 +1,27 @@
-import {
-  HandlerResponse,
-  HandlerEvent,
-  HandlerContext,
-} from "@netlify/functions";
+import { HandlerResponse, HandlerEvent } from "@netlify/functions";
 import { authenticatedHandler } from "./utils/auth-middleware";
 import { query } from "./utils/db";
 import { Handler } from "./types/types";
 
 const exchangeHandler: Handler = async (
-  event: HandlerEvent,
-  context: HandlerContext
+  event: HandlerEvent
 ): Promise<HandlerResponse> => {
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "Metoda niedozwolona." }),
+      body: JSON.stringify({ message: "Metoda niedozwolona. Użyj POST." }),
     };
   }
 
   try {
-    const { fromCurrency, toCurrency, amount, rate, userId } = JSON.parse(
+    const { fromCurrency, toCurrency, amount, rate } = JSON.parse(
       event.body || "{}"
     );
 
-    if (
-      !fromCurrency ||
-      !toCurrency ||
-      !amount ||
-      amount <= 0 ||
-      !rate ||
-      !userId
-    ) {
+    if (!fromCurrency || !toCurrency || !amount || amount <= 0 || !rate) {
       return {
         statusCode: 400,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: "Nieprawidłowe dane transakcji lub brak userId.",
-        }),
+        body: JSON.stringify({ message: "Nieprawidłowe dane transakcji." }),
       };
     }
 
@@ -45,52 +29,39 @@ const exchangeHandler: Handler = async (
       fromCurrency === "PLN" ? amount / rate : amount * rate;
 
     const checkRes = await query(
-      `SELECT saldo FROM temp_balances WHERE waluta_skrot = $1 AND user_id = $2`,
-      [fromCurrency, userId]
+      `SELECT saldo FROM temp_balances WHERE waluta_skrot = $1`,
+      [fromCurrency]
     );
 
-    if (checkRes.rows.length === 0 || Number(checkRes.rows[0].saldo) < amount) {
+    if (checkRes.rows.length === 0 || checkRes.rows[0].saldo < amount) {
       return {
         statusCode: 400,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: `Niewystarczające środki w walucie ${fromCurrency} lub brak konta.`,
+          message: `Niewystarczające środki w walucie ${fromCurrency}.`,
         }),
       };
     }
 
     await query(
-      `UPDATE temp_balances SET saldo = saldo - $1 WHERE waluta_skrot = $2 AND user_id = $3`,
-      [amount, fromCurrency, userId]
+      `UPDATE temp_balances SET saldo = saldo - $1 WHERE waluta_skrot = $2`,
+      [amount, fromCurrency]
     );
 
     await query(
-      `INSERT INTO temp_balances (user_id, waluta_skrot, saldo) 
-       VALUES ($1, $2, $3) 
-       ON CONFLICT (user_id, waluta_skrot) 
-       DO UPDATE SET saldo = temp_balances.saldo + $3`,
-      [userId, toCurrency, amountToReceive]
+      `UPDATE temp_balances SET saldo = saldo + $1 WHERE waluta_skrot = $2`,
+      [amountToReceive, toCurrency]
     );
 
     await query(
-      `INSERT INTO transaction_history (user_id, typ, waluta_z, waluta_do, kwota_z, kwota_do, kurs, data) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
-      [
-        userId,
-        "WYMIANA",
-        fromCurrency,
-        toCurrency,
-        amount,
-        amountToReceive,
-        rate,
-      ]
+      `INSERT INTO transaction_history (typ, waluta_z, waluta_do, kwota_z, kwota_do, kurs) 
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+      ["WYMIANA", fromCurrency, toCurrency, amount, amountToReceive, rate]
     );
 
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        success: true,
         message: "Wymiana zakończona sukcesem!",
         details: `Sprzedano: ${amount.toFixed(
           2
@@ -99,12 +70,11 @@ const exchangeHandler: Handler = async (
         )} ${toCurrency}`,
       }),
     };
-  } catch (error: any) {
-    console.error("Błąd podczas wykonywania wymiany:", error.message);
+  } catch (error) {
+    console.error("Błąd podczas wykonywania wymiany:", error);
     return {
       statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "Błąd serwera: " + error.message }),
+      body: JSON.stringify({ message: "Błąd serwera podczas wymiany walut." }),
     };
   }
 };

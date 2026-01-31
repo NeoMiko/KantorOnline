@@ -1,46 +1,56 @@
-import { createAsyncThunk } from "@reduxjs/toolkit";
+import { AppDispatch, RootState } from "../store/store";
+import { setBalances, Balance } from "../store/slices/walletSlice";
+import { API_ENDPOINTS } from "../constants/api";
 
-// 1. Definiujemy interfejs dla argumentów, które przekazujemy z komponentu WalletScreen
-interface FetchBalancesArgs {
-  token: string;
-  userId: string;
+interface BalancesResponse {
+  balances: Balance[];
 }
 
-interface Balance {
-  waluta_skrot: string;
-  saldo: number;
-}
+export const fetchWalletBalances =
+  () => async (dispatch: AppDispatch, getState: () => RootState) => {
+    dispatch(setBalances({ balances: [], isLoading: true, error: null }));
 
-const API_URL = "https://kantoronline.netlify.app/.netlify/functions";
-
-export const fetchWalletBalances = createAsyncThunk(
-  "wallet/fetchBalances",
-
-  async ({ token, userId }: FetchBalancesArgs, { rejectWithValue }) => {
     try {
-      const response = await fetch(
-        `${API_URL}/wallet-balances?userId=${userId}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const token = getState().auth.token;
+      if (!token) {
+        throw new Error("Użytkownik nie jest zalogowany (brak tokena).");
+      }
+
+      const response = await fetch(API_ENDPOINTS.WALLET_BALANCES, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
-        return rejectWithValue(
-          errorData.message || "Nie udało się pobrać sald."
-        );
+        throw new Error(errorData.message || "Błąd podczas pobierania sald.");
       }
 
-      const data = await response.json();
+      const data: BalancesResponse = await response.json();
 
-      return data.balances as Balance[];
+      const mappedBalances: Balance[] = data.balances.map((b: any) => ({
+        waluta_skrot: b.waluta_skrot,
+        saldo: Number(b.saldo ?? b.ilosc ?? 0),
+      }));
+
+      dispatch(
+        setBalances({
+          balances: mappedBalances,
+          isLoading: false,
+          error: null,
+        })
+      );
     } catch (error: any) {
-      return rejectWithValue(error.message || "Błąd sieci.");
+      console.error("Błąd walletService:", error.message);
+      dispatch(
+        setBalances({
+          balances: [],
+          isLoading: false,
+          error: error.message,
+        })
+      );
     }
-  }
-);
+  };

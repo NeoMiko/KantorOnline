@@ -1,31 +1,11 @@
 [build]
-  command = "npm run build && cd functions && npm run build"
+  command = "npm run build"
   publish = "dist"
 
 [functions]
-  directory = "functions/dist"
+  directory = "functions/dist" 
   node_bundler = "esbuild"
 
 [dev]
   targetPort = 8081 
   port = 8888
-
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-  force = true
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
-    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-
-[[headers]]
-  for = "/.netlify/functions/*"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
-    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"

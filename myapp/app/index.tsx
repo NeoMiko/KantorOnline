@@ -1,30 +1,6 @@
 import { Redirect } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
-import { View, ActivityIndicator } from 'react-native';
-import { RootState } from '../src/store/store';
+import React from 'react';
 
 export default function Index() {
-  const { isAuthenticated, isLoading } = useSelector((state: RootState) => state.auth);
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  
-  if (!isMounted || isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
-  }
-
-  
-  return isAuthenticated ? (
-    <Redirect href="/(tabs)/exchange" />
-  ) : (
-    <Redirect href={"./auth"} />
-  );
+  return <Redirect href="/exchange" />;
 }

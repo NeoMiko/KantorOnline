@@ -1,25 +1,16 @@
 import { Pool } from "pg";
 
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.error("UWAGA: Brak DATABASE_URL w środowisku!");
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   ssl: {
     rejectUnauthorized: false,
   },
-  connectionTimeoutMillis: 30000,
-  idleTimeoutMillis: 30000,
-  max: 10,
 });
 
-export const query = async (text: string, params?: any[]) => {
-  const start = Date.now();
-  try {
-    const res = await pool.query(text, params);
-    const duration = Date.now() - start;
-    console.log("Wykonano zapytanie:", { text, duration, rows: res.rowCount });
-    return res;
-  } catch (error: any) {
-    console.error("BŁĄD BAZY DANYCH:", error.message);
-    console.error("Stack trace:", error.stack);
-    throw error;
-  }
-};
+export const query = (text: string, params?: any[]) => pool.query(text, params);

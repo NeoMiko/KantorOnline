@@ -1,15 +1,12 @@
-import { HandlerResponse, HandlerEvent } from "@netlify/functions";
+import { HandlerResponse } from "@netlify/functions";
+import { query } from "./utils/db";
+import { Transaction } from "./types/types";
 
-export const handler = async (
-  event: HandlerEvent
-): Promise<HandlerResponse> => {
+export const handler = async (): Promise<HandlerResponse> => {
   try {
     const nbpResponse = await fetch(
       "https://api.nbp.pl/api/exchangerates/tables/a/?format=json"
     );
-
-    if (!nbpResponse.ok) throw new Error("Błąd odpowiedzi NBP");
-
     const nbpData = await nbpResponse.json();
 
     const nbpRates = nbpData[0].rates;
@@ -18,7 +15,7 @@ export const handler = async (
     const interestCurrencies = ["USD", "EUR", "CHF", "GBP"];
     const spread = 0.05;
 
-    const rates = nbpRates
+    const rates: Transaction[] = nbpRates
       .filter((r: any) => interestCurrencies.includes(r.code))
       .map((r: any) => ({
         waluta_skrot: r.code,
@@ -31,11 +28,10 @@ export const handler = async (
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ date, rates }),
     };
-  } catch (error: any) {
-    console.error("Błąd NBP:", error.message);
+  } catch (error) {
+    console.error("Błąd NBP:", error);
     return {
       statusCode: 500,
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: "Nie udało się pobrać kursów z NBP." }),
     };
   }

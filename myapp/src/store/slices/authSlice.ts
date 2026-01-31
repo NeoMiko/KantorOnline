@@ -1,5 +1,4 @@
-import { createSlice, PayloadAction, createAsyncThunk } from "@reduxjs/toolkit";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface AuthState {
   token: string | null;
@@ -9,22 +8,11 @@ interface AuthState {
   error: string | null;
 }
 
-// Akcja asynchroniczna do wczytywania danych z pamięci telefonu przy starcie
-export const loadAuthData = createAsyncThunk("auth/loadAuthData", async () => {
-  try {
-    const token = await AsyncStorage.getItem("userToken");
-    const userId = await AsyncStorage.getItem("userId");
-    return { token, userId };
-  } catch (e) {
-    return { token: null, userId: null };
-  }
-});
-
 const initialState: AuthState = {
-  token: null,
-  userId: null,
-  isAuthenticated: false,
-  isLoading: true,
+  token: "TEMP_JWT_TOKEN",
+  userId: "1",
+  isAuthenticated: true, // dla testu
+  isLoading: false,
   error: null,
 };
 
@@ -37,47 +25,16 @@ const authSlice = createSlice({
       action: PayloadAction<{ token: string; userId: string }>
     ) => {
       state.token = action.payload.token;
-      state.userId = String(action.payload.userId);
+      state.userId = action.payload.userId;
       state.isAuthenticated = true;
-      state.error = null;
-      state.isLoading = false;
-
-      // Zapisujemy dane do pamięci telefonu
-      AsyncStorage.setItem("userToken", action.payload.token);
-      AsyncStorage.setItem("userId", String(action.payload.userId));
     },
     logout: (state) => {
       state.token = null;
       state.userId = null;
       state.isAuthenticated = false;
-      state.isLoading = false;
-
-      AsyncStorage.removeItem("userToken");
-      AsyncStorage.removeItem("userId");
     },
-    setAuthError: (state, action: PayloadAction<string>) => {
-      state.error = action.payload;
-      state.isLoading = false;
-    },
-  },
-  extraReducers: (builder) => {
-    builder
-      .addCase(loadAuthData.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(loadAuthData.fulfilled, (state, action) => {
-        if (action.payload.token && action.payload.userId) {
-          state.token = action.payload.token;
-          state.userId = action.payload.userId;
-          state.isAuthenticated = true;
-        }
-        state.isLoading = false;
-      })
-      .addCase(loadAuthData.rejected, (state) => {
-        state.isLoading = false;
-      });
   },
 });
 
-export const { loginSuccess, logout, setAuthError } = authSlice.actions;
+export const { loginSuccess, logout } = authSlice.actions;
 export default authSlice.reducer;

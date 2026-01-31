@@ -10,14 +10,14 @@ interface RatesResponse {
 export const fetchCurrentRates =
   () => async (dispatch: AppDispatch, getState: () => RootState) => {
     try {
-      const { token } = getState().auth;
-
+      // 1. Pobieranie tokena autoryzacji z Reduxa
+      const token = getState().auth.token;
       if (!token) {
-        console.warn(
-          "Brak tokena – nie można pobrać kursów (wymagana autoryzacja)."
-        );
+        console.warn("Brak tokena autoryzacji. Pomiń pobieranie kursów.");
         return;
       }
+
+      console.log("Pobieranie kursów z:", API_ENDPOINTS.RATES_CURRENT);
 
       const response = await fetch(API_ENDPOINTS.RATES_CURRENT, {
         method: "GET",
@@ -28,24 +28,19 @@ export const fetchCurrentRates =
       });
 
       if (!response.ok) {
-        // Obsługa błędów 401, 404, 500
-        const errorText = await response.text();
-        let errorMessage = "Błąd pobierania kursów.";
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.message || errorMessage;
-        } catch {
-          errorMessage = errorText || errorMessage;
-        }
-        throw new Error(errorMessage);
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || "Błąd pobierania kursów z serwera."
+        );
       }
 
       const data: RatesResponse = await response.json();
 
-      if (data && data.rates) {
-        dispatch(setRates(data.rates));
-      }
+      // 2. Zapis pobranych kursów do Reduxa
+      dispatch(setRates(data.rates));
+      console.log("Kursy pomyślnie zaktualizowane.");
     } catch (error) {
-      console.error("Błąd fetchCurrentRates:", error);
+      // Obsługa błędów sieci i API
+      console.error("Błąd API podczas pobierania kursów:", error);
     }
   };
