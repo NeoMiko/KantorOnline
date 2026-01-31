@@ -66,7 +66,7 @@ export const handler = async (
     );
 
     return {
-      statusCode: 201,
+      statusCode: 200,
       headers,
       body: JSON.stringify({
         message: "Konto utworzone!",

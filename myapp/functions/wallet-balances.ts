@@ -10,7 +10,7 @@ import { Handler } from "./types/types";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
 const walletHandler: Handler = async (
@@ -54,7 +54,7 @@ const walletHandler: Handler = async (
     return {
       statusCode: 500,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ message: error.message }),
+      body: JSON.stringify({ message: "Błąd serwera: " + error.message }),
     };
   }
 };

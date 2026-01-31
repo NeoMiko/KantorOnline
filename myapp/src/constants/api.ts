@@ -8,6 +8,8 @@ export const API_ENDPOINTS = {
 
   RATES_CURRENT: `${API_BASE_URL}/rates-current`,
   EXCHANGE_EXECUTE: `${API_BASE_URL}/exchange-execute`,
+
   WALLET_BALANCES: `${API_BASE_URL}/wallet-balances`,
+
   HISTORY_GET: `${API_BASE_URL}/history-get`,
 };

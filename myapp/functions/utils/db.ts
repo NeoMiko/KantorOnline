@@ -15,8 +15,8 @@ export const query = async (text: string, params?: any[]) => {
     const duration = Date.now() - start;
     console.log("Wykonano zapytanie:", { text, duration, rows: res.rowCount });
     return res;
-  } catch (error) {
-    console.error("BŁĄD BAZY DANYCH:", error);
+  } catch (error: any) {
+    console.error("BŁĄD BAZY DANYCH:", error.message);
     throw error;
   }
 };
