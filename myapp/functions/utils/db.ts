@@ -1,16 +1,17 @@
 import { Pool } from "pg";
 
-const connectionString = process.env.DATABASE_URL;
+export const query = async (text: string, params?: any[]) => {
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  });
 
-if (!connectionString) {
-  console.error("UWAGA: Brak DATABASE_URL w środowisku!");
-}
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL + "?sslmode=verify-full",
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
-
-export const query = (text: string, params?: any[]) => pool.query(text, params);
+  try {
+    const res = await pool.query(text, params);
+    return res;
+  } finally {
+    await pool.end();
+  }
+};
