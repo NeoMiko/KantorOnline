@@ -7,7 +7,7 @@ if (!connectionString) {
 }
 
 const pool = new Pool({
-  connectionString,
+  connectionString: process.env.DATABASE_URL + "?sslmode=verify-full",
   ssl: {
     rejectUnauthorized: false,
   },

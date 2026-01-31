@@ -25,6 +25,6 @@ export default function Index() {
   return isAuthenticated ? (
     <Redirect href="/(tabs)/exchange" />
   ) : (
-    <Redirect href={"/auth" as any} />
+    <Redirect href={"./auth"} />
   );
 }
