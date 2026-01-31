@@ -72,7 +72,7 @@ export default function HistoryScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <Text style={styles.title}>Ostatnie transakcje</Text>
       
- 
+     
       {loading && history.length === 0 ? (
         <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 20 }} />
       ) : (
@@ -82,7 +82,7 @@ export default function HistoryScreen() {
           renderItem={renderItem}
           ListEmptyComponent={<Text style={styles.empty}>Brak transakcji w historii.</Text>}
           refreshing={loading}
-          onRefresh={fetchHistory}
+          onRefresh={fetchHistory} 
         />
       )}
     </SafeAreaView>
