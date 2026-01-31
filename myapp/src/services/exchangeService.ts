@@ -7,20 +7,14 @@ interface ExchangeResult {
   message: string;
 }
 
-/**
- * * @param fromCurrency - Kod waluty sprzedawanej
- * @param toCurrency - Kod waluty kupowanej
- * @param amount - Kwota waluty sprzedawanej
- * @param rate - Kurs wymiany zastosowany w transakcji
- * @param token - Token autoryzacyjny użytkownika
- */
 export const executeExchange =
   (
     fromCurrency: string,
     toCurrency: string,
     amount: number,
     rate: number,
-    token: string
+    token: string,
+    userId: string
   ) =>
   async (dispatch: AppDispatch): Promise<ExchangeResult> => {
     try {
@@ -38,6 +32,7 @@ export const executeExchange =
             toCurrency,
             amount,
             rate,
+            userId,
           }),
         }
       );
@@ -48,7 +43,7 @@ export const executeExchange =
         throw new Error(data.message || "Wystąpił błąd podczas wymiany walut.");
       }
 
-      await dispatch(fetchWalletBalances());
+      await dispatch(fetchWalletBalances({ token, userId }));
 
       return {
         success: true,

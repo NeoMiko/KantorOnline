@@ -26,7 +26,7 @@ function RootLayoutNav() {
       }} />
       
      
-      <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+      
     </Stack>
   );
 }

@@ -11,16 +11,20 @@ interface AuthState {
 
 // Akcja asynchroniczna do wczytywania danych z pamięci telefonu przy starcie
 export const loadAuthData = createAsyncThunk("auth/loadAuthData", async () => {
-  const token = await AsyncStorage.getItem("userToken");
-  const userId = await AsyncStorage.getItem("userId");
-  return { token, userId };
+  try {
+    const token = await AsyncStorage.getItem("userToken");
+    const userId = await AsyncStorage.getItem("userId");
+    return { token, userId };
+  } catch (e) {
+    return { token: null, userId: null };
+  }
 });
 
 const initialState: AuthState = {
   token: null,
   userId: null,
   isAuthenticated: false,
-  isLoading: false,
+  isLoading: true,
   error: null,
 };
 
@@ -33,28 +37,29 @@ const authSlice = createSlice({
       action: PayloadAction<{ token: string; userId: string }>
     ) => {
       state.token = action.payload.token;
-      state.userId = action.payload.userId;
+      state.userId = String(action.payload.userId);
       state.isAuthenticated = true;
       state.error = null;
+      state.isLoading = false;
 
       // Zapisujemy dane do pamięci telefonu
       AsyncStorage.setItem("userToken", action.payload.token);
-      AsyncStorage.setItem("userId", action.payload.userId);
+      AsyncStorage.setItem("userId", String(action.payload.userId));
     },
     logout: (state) => {
       state.token = null;
       state.userId = null;
       state.isAuthenticated = false;
+      state.isLoading = false;
 
-      // Czyścimy pamięć telefonu
       AsyncStorage.removeItem("userToken");
       AsyncStorage.removeItem("userId");
     },
     setAuthError: (state, action: PayloadAction<string>) => {
       state.error = action.payload;
+      state.isLoading = false;
     },
   },
-  // Obsługa wczytywania danych z AsyncStorage
   extraReducers: (builder) => {
     builder
       .addCase(loadAuthData.pending, (state) => {

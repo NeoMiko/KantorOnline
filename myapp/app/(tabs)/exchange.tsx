@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FontAwesome } from '@expo/vector-icons';
 
 import { RootState, AppDispatch } from '../../src/store/store';
 import { fetchCurrentRates } from '../../src/services/rateService';
@@ -11,9 +10,9 @@ import { executeExchange } from '../../src/services/exchangeService';
 export default function ExchangeScreen() {
   const dispatch = useDispatch<AppDispatch>();
   
-  // Dane z Redux
+  // Dane z Redux - dodano userId
   const { rates, isLoading, lastUpdated } = useSelector((state: RootState) => state.rates);
-  const { token, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { token, userId, isAuthenticated } = useSelector((state: RootState) => state.auth);
 
   // Stan formularza
   const [amount, setAmount] = useState('');
@@ -21,15 +20,14 @@ export default function ExchangeScreen() {
   const [transactionType, setTransactionType] = useState<'KUPNO' | 'SPRZEDAZ'>('KUPNO');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Aktualizacja kursow z NBP 
+  // Aktualizacja kursów z NBP 
   useEffect(() => {
     if (isAuthenticated) {
       dispatch(fetchCurrentRates());
-      const interval = setInterval(() => dispatch(fetchCurrentRates()), 600000);
+      const interval = setInterval(() => dispatch(fetchCurrentRates()), 600000); // 10 min
       return () => clearInterval(interval);
     }
   }, [isAuthenticated, dispatch]);
-
 
   const currentRateObj = rates.find(r => r.waluta_skrot === selectedCurrency);
   const activeRate = transactionType === 'KUPNO' 
@@ -43,27 +41,45 @@ export default function ExchangeScreen() {
 
   const handleTransaction = async () => {
     const numAmount = parseFloat(amount);
+    
+    // Walidacja
     if (!numAmount || numAmount <= 0) {
       Alert.alert("Błąd", "Wpisz poprawną kwotę.");
       return;
     }
 
-    if (!activeRate || !token) return;
+    if (!activeRate || !token || !userId) {
+      Alert.alert("Błąd", "Brak wymaganych danych (kurs, token lub ID użytkownika).");
+      return;
+    }
 
     setIsProcessing(true);
 
+    // Określenie kierunku walut
     const fromCur = transactionType === 'KUPNO' ? 'PLN' : selectedCurrency;
     const toCur = transactionType === 'KUPNO' ? selectedCurrency : 'PLN';
 
-    const response = await dispatch(executeExchange(fromCur, toCur, numAmount, activeRate, token));
-    
-    setIsProcessing(false);
-
-    if (response.success) {
-      Alert.alert("Sukces", response.message);
-      setAmount('');
-    } else {
-      Alert.alert("Błąd", response.message);
+    try {
+      // Wywołanie z 6 argumentami zgodnie z Twoim serwisem
+      const response = await dispatch(executeExchange(
+        fromCur, 
+        toCur, 
+        numAmount, 
+        activeRate, 
+        token, 
+        userId
+      ));
+      
+      if (response.success) {
+        Alert.alert("Sukces", response.message);
+        setAmount('');
+      } else {
+        Alert.alert("Błąd", response.message);
+      }
+    } catch (error: any) {
+      Alert.alert("Błąd krytyczny", error.message || "Nieoczekiwany błąd transakcji.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -73,10 +89,12 @@ export default function ExchangeScreen() {
         
         <View style={styles.headerSection}>
           <Text style={styles.headerTitle}>Aktualne Kursy Wymiany (PLN)</Text>
-          <Text style={styles.lastUpdate}>Ostatnia aktualizacja: {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : '--:--'}</Text>
+          <Text style={styles.lastUpdate}>
+            Ostatnia aktualizacja: {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : '--:--'}
+          </Text>
         </View>
 
-        {/* TABELA KURSÓW */}
+       
         <View style={styles.tableCard}>
           <View style={[styles.row, styles.headerRow]}>
             <Text style={[styles.cell, styles.headerCell, { textAlign: 'left' }]}>Waluta</Text>
@@ -96,7 +114,7 @@ export default function ExchangeScreen() {
           ))}
         </View>
 
-      
+     
         <View style={styles.formCard}>
           <Text style={styles.formTitle}>Nowe Zlecenie: {selectedCurrency}</Text>
           
@@ -139,9 +157,13 @@ export default function ExchangeScreen() {
           <TouchableOpacity 
             style={[styles.submitBtn, transactionType === 'KUPNO' ? styles.buyActive : styles.sellActive]} 
             onPress={handleTransaction}
-            disabled={isProcessing}
+            disabled={isProcessing || !activeRate}
           >
-            {isProcessing ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>POTWIERDŹ TRANSAKCJĘ</Text>}
+            {isProcessing ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitBtnText}>POTWIERDŹ TRANSAKCJĘ</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -156,7 +178,6 @@ const styles = StyleSheet.create({
   headerSection: { marginBottom: 16 },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#333' },
   lastUpdate: { fontSize: 12, color: '#666' },
-  
   tableCard: { backgroundColor: '#fff', borderRadius: 8, elevation: 2, marginBottom: 20, overflow: 'hidden' },
   row: { flexDirection: 'row', padding: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   selectedRow: { backgroundColor: '#eef6ff' },
@@ -164,7 +185,6 @@ const styles = StyleSheet.create({
   headerCell: { flex: 1, color: '#fff', fontWeight: 'bold', textAlign: 'center' },
   cell: { flex: 1, textAlign: 'center', color: '#444' },
   bold: { fontWeight: 'bold' },
-
   formCard: { backgroundColor: '#fff', borderRadius: 12, padding: 20, elevation: 4 },
   formTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
   typeSelector: { flexDirection: 'row', marginBottom: 20, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#ddd' },
@@ -173,16 +193,13 @@ const styles = StyleSheet.create({
   buyActive: { backgroundColor: '#28a745' },
   sellActive: { backgroundColor: '#dc3545' },
   textWhite: { color: '#fff' },
-
   inputWrapper: { marginBottom: 15 },
   label: { fontSize: 13, color: '#666', marginBottom: 5 },
   input: { borderBottomWidth: 2, borderBottomColor: '#007bff', fontSize: 18, paddingVertical: 8, fontWeight: 'bold' },
-  
   resultBox: { backgroundColor: '#f8f9fa', padding: 15, borderRadius: 8, marginBottom: 20, alignItems: 'center' },
   resultLabel: { fontSize: 12, color: '#666' },
   resultValue: { fontSize: 22, fontWeight: 'bold', color: '#333', marginVertical: 4 },
   rateInfo: { fontSize: 11, color: '#999' },
-
   submitBtn: { padding: 16, borderRadius: 8, alignItems: 'center' },
   submitBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
 });
