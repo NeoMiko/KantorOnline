@@ -51,42 +51,41 @@ const exchangeHandler: Handler = async (
       };
     }
 
-    // Wyliczenie kwoty otrzymywanej
-    const amountToReceive =
+    const rawAmountToReceive =
       fromCurrency === "PLN" ? amount / rate : amount * rate;
+    const amountToReceive = Math.round(rawAmountToReceive * 100) / 100;
 
-    //  Sprawdzenie salda konkretnego użytkownika
     const checkRes = await query(
       `SELECT saldo FROM temp_balances WHERE waluta_skrot = $1 AND user_id = $2`,
       [fromCurrency, userId]
     );
 
-    if (checkRes.rows.length === 0 || Number(checkRes.rows[0].saldo) < amount) {
+    const currentBalance =
+      checkRes.rows.length > 0 ? Number(checkRes.rows[0].saldo) : 0;
+
+    if (checkRes.rows.length === 0 || currentBalance < amount) {
       return {
         statusCode: 400,
         headers: CORS_HEADERS,
         body: JSON.stringify({
-          message: `Niewystarczające środki w walucie ${fromCurrency} lub brak konta.`,
+          message: `Niewystarczające środki. Posiadasz ${currentBalance} ${fromCurrency}.`,
         }),
       };
     }
 
-    //  Odejmowanie środków
     await query(
       `UPDATE temp_balances SET saldo = saldo - $1 WHERE waluta_skrot = $2 AND user_id = $3`,
       [amount, fromCurrency, userId]
     );
 
-    //  Dodawanie środków
     await query(
       `INSERT INTO temp_balances (user_id, waluta_skrot, saldo) 
        VALUES ($1, $2, $3) 
        ON CONFLICT (user_id, waluta_skrot) 
-       DO UPDATE SET saldo = temp_balances.saldo + $3`,
+       DO UPDATE SET saldo = temp_balances.saldo + EXCLUDED.saldo`,
       [userId, toCurrency, amountToReceive]
     );
 
-    // Zapis do historii
     await query(
       `INSERT INTO transaction_history (user_id, typ, waluta_z, waluta_do, kwota_z, kwota_do, kurs, data) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
@@ -107,11 +106,11 @@ const exchangeHandler: Handler = async (
       body: JSON.stringify({
         success: true,
         message: "Wymiana zakończona sukcesem!",
-        details: `Sprzedano: ${amount.toFixed(
-          2
-        )} ${fromCurrency}, Otrzymano: ${amountToReceive.toFixed(
-          2
-        )} ${toCurrency}`,
+        details: {
+          sold: `${amount} ${fromCurrency}`,
+          received: `${amountToReceive} ${toCurrency}`,
+          rate: rate,
+        },
       }),
     };
   } catch (error: any) {

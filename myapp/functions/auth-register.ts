@@ -1,5 +1,6 @@
 import { HandlerResponse, HandlerEvent } from "@netlify/functions";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { query } from "./utils/db";
 
 export const handler = async (
@@ -12,6 +13,7 @@ export const handler = async (
     "Content-Type": "application/json",
   };
 
+  // Obsługa zapytania wstępnego
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 204, headers, body: "" };
   }
@@ -20,13 +22,14 @@ export const handler = async (
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ message: "Method Not Allowed" }),
+      body: JSON.stringify({ message: "Metoda niedozwolona." }),
     };
   }
 
   try {
     const { username, password } = JSON.parse(event.body || "{}");
 
+    // Walidacja wejścia
     if (!username || !password) {
       return {
         statusCode: 400,
@@ -35,22 +38,24 @@ export const handler = async (
       };
     }
 
-    // Sprawdź czy użytkownik istnieje
+    // Sprawdzenie czy użytkownik już istnieje
     const userExists = await query("SELECT id FROM users WHERE username = $1", [
       username,
     ]);
+
     if (userExists.rows.length > 0) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ message: "Użytkownik już istnieje." }),
+        body: JSON.stringify({
+          message: "Użytkownik o takim loginie już istnieje.",
+        }),
       };
     }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Rejestracja użytkownika
     const newUser = await query(
       "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id",
       [username, hashedPassword]
@@ -63,20 +68,35 @@ export const handler = async (
       [userId, "PLN", 10000]
     );
 
+    const secret = process.env.JWT_SECRET || "temporary_secret_key_123";
+    const token = jwt.sign({ userId: userId, username: username }, secret, {
+      expiresIn: "1d",
+    });
+
+    console.log(
+      `Pomyślnie zarejestrowano użytkownika: ${username} (ID: ${userId})`
+    );
+
     return {
       statusCode: 201,
       headers,
       body: JSON.stringify({
         message: "Konto utworzone pomyślnie!",
+        token: token,
         userId: userId,
+        username: username,
       }),
     };
   } catch (error: any) {
-    console.error("Błąd w auth-register:", error);
+    console.error("BŁĄD REJESTRACJI:", error);
+
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ message: "Błąd serwera: " + error.message }),
+      body: JSON.stringify({
+        message: "Wystąpił błąd serwera podczas rejestracji.",
+        details: error.message,
+      }),
     };
   }
 };
