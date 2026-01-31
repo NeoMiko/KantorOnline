@@ -7,20 +7,10 @@ import { authenticatedHandler } from "./utils/auth-middleware";
 import { query } from "./utils/db";
 import { Handler } from "./types/types";
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-};
-
 const historyHandler: Handler = async (
   event: HandlerEvent,
   context: HandlerContext
 ): Promise<HandlerResponse> => {
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 204, headers: CORS_HEADERS, body: "" };
-  }
-
   try {
     const userId = event.queryStringParameters?.userId;
 
@@ -29,7 +19,7 @@ const historyHandler: Handler = async (
     if (!userId || userId === "undefined" || userId === "null") {
       return {
         statusCode: 400,
-        headers: CORS_HEADERS,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message:
             "Brak identyfikatora użytkownika lub identyfikator nieprawidłowy.",
@@ -49,10 +39,7 @@ const historyHandler: Handler = async (
 
     return {
       statusCode: 200,
-      headers: {
-        ...CORS_HEADERS,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         success: true,
         history: result.rows,
@@ -62,7 +49,7 @@ const historyHandler: Handler = async (
     console.error("BŁĄD HISTORY-GET:", error.message);
     return {
       statusCode: 500,
-      headers: CORS_HEADERS,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message: "Błąd serwera podczas pobierania historii.",
       }),

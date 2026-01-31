@@ -6,25 +6,13 @@ import { query } from "./utils/db";
 export const handler = async (
   event: HandlerEvent
 ): Promise<HandlerResponse> => {
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization, X-Requested-With",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Content-Type": "application/json",
-  };
-
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers, body: "" };
-  }
-
   try {
     const { username, password } = JSON.parse(event.body || "{}");
 
     if (!username || !password) {
       return {
         statusCode: 400,
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: "Podaj dane." }),
       };
     }
@@ -35,7 +23,7 @@ export const handler = async (
     if (userExists.rows.length > 0) {
       return {
         statusCode: 400,
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: "Użytkownik już istnieje." }),
       };
     }
@@ -67,7 +55,7 @@ export const handler = async (
 
     return {
       statusCode: 200,
-      headers,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message: "Konto utworzone!",
         token,
@@ -80,7 +68,7 @@ export const handler = async (
     console.error("CRASH SERWERA:", error.message);
     return {
       statusCode: 500,
-      headers,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: "Błąd serwera: " + error.message }),
     };
   }

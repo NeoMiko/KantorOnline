@@ -6,23 +6,11 @@ import { query } from "./utils/db";
 export const handler = async (
   event: HandlerEvent
 ): Promise<HandlerResponse> => {
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization, X-Requested-With",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Content-Type": "application/json",
-  };
-
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers, body: "" };
-  }
-
   try {
     if (event.httpMethod !== "POST") {
       return {
         statusCode: 405,
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: "Użyj POST" }),
       };
     }
@@ -34,7 +22,7 @@ export const handler = async (
     if (!username || !password) {
       return {
         statusCode: 400,
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: "Brak danych" }),
       };
     }
@@ -46,7 +34,7 @@ export const handler = async (
     if (res.rows.length === 0) {
       return {
         statusCode: 401,
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: "Użytkownik nie istnieje." }),
       };
     }
@@ -58,7 +46,7 @@ export const handler = async (
     if (!isMatch) {
       return {
         statusCode: 401,
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: "Błędne hasło." }),
       };
     }
@@ -71,7 +59,7 @@ export const handler = async (
 
     return {
       statusCode: 200,
-      headers,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         token,
         userId: user.id,
@@ -82,7 +70,7 @@ export const handler = async (
     console.error("CRITICAL ERROR:", error.message);
     return {
       statusCode: 500,
-      headers,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message: "Błąd bazy danych",
         error: error.message,
