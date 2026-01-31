@@ -17,7 +17,7 @@ import { loginSuccess } from '../src/store/slices/authSlice';
 
 export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(''); 
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -25,7 +25,7 @@ export default function AuthScreen() {
   const dispatch = useDispatch();
 
   const handleAuth = async () => {
-    // Prosta walidacja
+    //  Walidacja pól
     if (!username.trim() || !password.trim()) {
       Alert.alert("Błąd", "Proszę wypełnić wszystkie pola.");
       return;
@@ -35,42 +35,55 @@ export default function AuthScreen() {
     const endpoint = isLogin ? 'auth-login' : 'auth-register';
     
     try {
+      //  Wysłanie zapytania do Netlify
       const response = await fetch(`https://kantoronline.netlify.app/.netlify/functions/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        
         body: JSON.stringify({ 
             username: username.trim(), 
             password: password 
         }),
       });
 
-      const data = await response.json();
+      
+      const contentType = response.headers.get("content-type");
+      let data;
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        throw new Error("Serwer zwrócił niepoprawny format danych.");
+      }
 
       if (response.ok) {
         if (isLogin) {
-          // Zapisujemy dane w Redux 
+          //  Zapisujemy dane w Redux 
           dispatch(loginSuccess({ 
             token: data.token, 
             userId: data.userId.toString() 
           }));
           
           Alert.alert("Sukces", "Zalogowano pomyślnie!");
+          // Przekierowanie do głównej części aplikacji
           router.replace('/(tabs)/exchange');
         } else {
-          // Po rejestracji przełączamy na logowanie
+          // Rejestracja zakończona sukcesem
           Alert.alert("Sukces", "Konto utworzone! Możesz się teraz zalogować.");
           setIsLogin(true);
           setPassword(''); 
         }
       } else {
         // Obsługa błędów z backendu 
-        Alert.alert("Błąd", data.message || "Wystąpił nieoczekiwany problem.");
+        Alert.alert("Błąd", data.message || "Wystąpił problem z autoryzacją.");
       }
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Błąd połączenia", "Nie udało się skontaktować z serwerem. Sprawdź internet.");
+    } catch (error: any) {
+      console.error("BŁĄD AUTH:", error);
+      Alert.alert(
+        "Błąd połączenia", 
+        "Nie udało się skontaktować z serwerem. Sprawdź czy masz połączenie z internetem i czy backend działa."
+      );
     } finally {
       setLoading(false);
     }
@@ -89,14 +102,15 @@ export default function AuthScreen() {
           </Text>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Nazwa użytkownika</Text>
+            <Text style={styles.label}>Adres Email / Login</Text>
             <TextInput
               style={styles.input}
-              placeholder="np. kamil123"
+              placeholder="np. kamil@domena.pl"
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
               autoCorrect={false}
+              keyboardType="email-address"
             />
           </View>
 
@@ -141,15 +155,8 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
-  },
+  container: { flex: 1, backgroundColor: '#f8f9fa' },
+  scrollContainer: { flexGrow: 1, justifyContent: 'center', padding: 20 },
   card: {
     backgroundColor: '#fff',
     borderRadius: 20,
@@ -160,29 +167,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#444',
-    marginBottom: 8,
-    marginLeft: 4,
-  },
+  title: { fontSize: 26, fontWeight: 'bold', color: '#1a1a1a', textAlign: 'center', marginBottom: 10 },
+  subtitle: { fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 30 },
+  inputContainer: { marginBottom: 20 },
+  label: { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 8, marginLeft: 4 },
   input: {
     backgroundColor: '#f1f3f5',
     paddingHorizontal: 15,
@@ -198,27 +186,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 10,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 3,
   },
-  buttonDisabled: {
-    backgroundColor: '#a0cfff',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  switchButton: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  switchText: {
-    color: '#007AFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  buttonDisabled: { backgroundColor: '#a0cfff' },
+  buttonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  switchButton: { marginTop: 20, alignItems: 'center' },
+  switchText: { color: '#007AFF', fontSize: 14, fontWeight: '600' },
 });
