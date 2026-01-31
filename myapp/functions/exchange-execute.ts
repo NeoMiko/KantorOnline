@@ -34,7 +34,6 @@ const exchangeHandler: Handler = async (
       event.body || "{}"
     );
 
-    // Walidacja danych wejściowych
     if (
       !fromCurrency ||
       !toCurrency ||
@@ -52,10 +51,11 @@ const exchangeHandler: Handler = async (
       };
     }
 
+    // Wyliczenie kwoty otrzymywanej
     const amountToReceive =
       fromCurrency === "PLN" ? amount / rate : amount * rate;
 
-    // Sprawdzenie salda konkretnego użytkownika
+    //  Sprawdzenie salda konkretnego użytkownika
     const checkRes = await query(
       `SELECT saldo FROM temp_balances WHERE waluta_skrot = $1 AND user_id = $2`,
       [fromCurrency, userId]
@@ -66,18 +66,18 @@ const exchangeHandler: Handler = async (
         statusCode: 400,
         headers: CORS_HEADERS,
         body: JSON.stringify({
-          message: `Niewystarczające środki w walucie ${fromCurrency} lub konto nie istnieje.`,
+          message: `Niewystarczające środki w walucie ${fromCurrency} lub brak konta.`,
         }),
       };
     }
 
-    // Odejmowanie środków
+    //  Odejmowanie środków
     await query(
       `UPDATE temp_balances SET saldo = saldo - $1 WHERE waluta_skrot = $2 AND user_id = $3`,
       [amount, fromCurrency, userId]
     );
 
-    // Dodawanie środków
+    //  Dodawanie środków
     await query(
       `INSERT INTO temp_balances (user_id, waluta_skrot, saldo) 
        VALUES ($1, $2, $3) 
@@ -86,6 +86,7 @@ const exchangeHandler: Handler = async (
       [userId, toCurrency, amountToReceive]
     );
 
+    // Zapis do historii
     await query(
       `INSERT INTO transaction_history (user_id, typ, waluta_z, waluta_do, kwota_z, kwota_do, kurs, data) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
@@ -104,6 +105,7 @@ const exchangeHandler: Handler = async (
       statusCode: 200,
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
       body: JSON.stringify({
+        success: true,
         message: "Wymiana zakończona sukcesem!",
         details: `Sprzedano: ${amount.toFixed(
           2
@@ -117,9 +119,7 @@ const exchangeHandler: Handler = async (
     return {
       statusCode: 500,
       headers: CORS_HEADERS,
-      body: JSON.stringify({
-        message: "Błąd serwera podczas wymiany: " + error.message,
-      }),
+      body: JSON.stringify({ message: "Błąd serwera: " + error.message }),
     };
   }
 };

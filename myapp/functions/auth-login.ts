@@ -10,18 +10,43 @@ export const handler = async (
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Content-Type": "application/json",
   };
 
   if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers, body: "" };
+    return {
+      statusCode: 204,
+      headers,
+      body: "",
+    };
   }
 
   if (event.httpMethod !== "POST") {
-    return { statusCode: 405, headers, body: "Method Not Allowed" };
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ message: "Metoda niedozwolona" }),
+    };
   }
 
   try {
-    const { username, password } = JSON.parse(event.body || "{}");
+    if (!event.body) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ message: "Brak danych w żądaniu" }),
+      };
+    }
+
+    const { username, password } = JSON.parse(event.body);
+
+    if (!username || !password) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ message: "Login i hasło są wymagane" }),
+      };
+    }
 
     const res = await query("SELECT * FROM users WHERE username = $1", [
       username,
@@ -48,7 +73,7 @@ export const handler = async (
 
     const token = jwt.sign(
       { userId: user.id, username: user.username },
-      process.env.JWT_SECRET || "secret",
+      process.env.JWT_SECRET || "secret_klucz_do_zmiany",
       { expiresIn: "1d" }
     );
 
@@ -67,7 +92,10 @@ export const handler = async (
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ message: "Błąd serwera: " + error.message }),
+      body: JSON.stringify({
+        message: "Błąd serwera",
+        error: error.message,
+      }),
     };
   }
 };

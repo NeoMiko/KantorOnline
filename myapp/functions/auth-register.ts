@@ -5,19 +5,23 @@ import { query } from "./utils/db";
 export const handler = async (
   event: HandlerEvent
 ): Promise<HandlerResponse> => {
-  // Nagłówki CORS
   const headers = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Content-Type": "application/json",
   };
 
   if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers, body: "" };
+    return { statusCode: 204, headers, body: "" };
   }
 
   if (event.httpMethod !== "POST") {
-    return { statusCode: 405, headers, body: "Method Not Allowed" };
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ message: "Method Not Allowed" }),
+    };
   }
 
   try {
@@ -46,7 +50,7 @@ export const handler = async (
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Zapis do bazy
+    // Rejestracja użytkownika
     const newUser = await query(
       "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id",
       [username, hashedPassword]
@@ -54,7 +58,6 @@ export const handler = async (
 
     const userId = newUser.rows[0].id;
 
-    // Dodaj 10 000 PLN na start
     await query(
       "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
       [userId, "PLN", 10000]
@@ -63,11 +66,13 @@ export const handler = async (
     return {
       statusCode: 201,
       headers,
-      body: JSON.stringify({ message: "Konto utworzone pomyślnie!" }),
+      body: JSON.stringify({
+        message: "Konto utworzone pomyślnie!",
+        userId: userId,
+      }),
     };
   } catch (error: any) {
     console.error("Błąd w auth-register:", error);
-
     return {
       statusCode: 500,
       headers,
