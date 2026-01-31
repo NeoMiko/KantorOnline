@@ -1,12 +1,14 @@
 import { HandlerResponse, HandlerEvent } from "@netlify/functions";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { query } from "./utils/db";
 
 export const handler = async (
   event: HandlerEvent
 ): Promise<HandlerResponse> => {
   try {
+    console.log("=== AUTH-LOGIN START ===");
+    console.log("Method:", event.httpMethod);
+    console.log("Body:", event.body);
+
     if (event.httpMethod !== "POST") {
       return {
         statusCode: 405,
@@ -15,64 +17,62 @@ export const handler = async (
       };
     }
 
-    console.log("Otrzymano body:", event.body);
-
     const { username, password } = JSON.parse(event.body || "{}");
 
     if (!username || !password) {
       return {
         statusCode: 400,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "Brak danych" }),
+        body: JSON.stringify({ message: "Podaj username i password" }),
       };
     }
 
-    const res = await query("SELECT * FROM users WHERE username = $1", [
-      username,
-    ]);
+    console.log("Szukam użytkownika:", username);
+
+    const res = await query(
+      "SELECT id, username, password FROM users WHERE username = $1",
+      [username]
+    );
 
     if (res.rows.length === 0) {
+      console.log("Użytkownik nie istnieje");
       return {
-        statusCode: 401,
+        statusCode: 404,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "Użytkownik nie istnieje." }),
+        body: JSON.stringify({ message: "Użytkownik nie istnieje. Zarejestruj się." }),
       };
     }
 
     const user = res.rows[0];
 
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-
-    if (!isMatch) {
+    if (user.password !== password) {
+      console.log("Złe hasło");
       return {
         statusCode: 401,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "Błędne hasło." }),
+        body: JSON.stringify({ message: "Złe hasło." }),
       };
     }
 
-    const token = jwt.sign(
-      { userId: user.id, username: user.username },
-      process.env.JWT_SECRET || "twoj_staly_klucz_123",
-      { expiresIn: "1d" }
-    );
+    console.log("Zalogowano pomyślnie:", user.id);
 
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        token,
         userId: String(user.id),
         username: user.username,
+        token: "dummy-token-" + user.id,
       }),
     };
   } catch (error: any) {
-    console.error("CRITICAL ERROR:", error.message);
+    console.error("BŁĄD AUTH-LOGIN:", error.message);
+    console.error("Stack:", error.stack);
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        message: "Błąd bazy danych",
+        message: "Błąd serwera",
         error: error.message,
       }),
     };
