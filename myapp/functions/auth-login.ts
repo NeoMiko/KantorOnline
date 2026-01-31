@@ -6,8 +6,19 @@ import { query } from "./utils/db";
 export const handler = async (
   event: HandlerEvent
 ): Promise<HandlerResponse> => {
-  if (event.httpMethod !== "POST")
-    return { statusCode: 405, body: "Method Not Allowed" };
+  const headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 200, headers, body: "" };
+  }
+
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, headers, body: "Method Not Allowed" };
+  }
 
   try {
     const { username, password } = JSON.parse(event.body || "{}");
@@ -15,9 +26,11 @@ export const handler = async (
     const res = await query("SELECT * FROM users WHERE username = $1", [
       username,
     ]);
+
     if (res.rows.length === 0) {
       return {
         statusCode: 401,
+        headers,
         body: JSON.stringify({ message: "Nieprawidłowy login lub hasło." }),
       };
     }
@@ -28,6 +41,7 @@ export const handler = async (
     if (!isMatch) {
       return {
         statusCode: 401,
+        headers,
         body: JSON.stringify({ message: "Nieprawidłowy login lub hasło." }),
       };
     }
@@ -40,12 +54,20 @@ export const handler = async (
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ token, username: user.username, userId: user.id }),
+      headers,
+      body: JSON.stringify({
+        token,
+        username: user.username,
+        userId: user.id,
+      }),
     };
   } catch (error: any) {
+    console.error("Błąd w auth-login:", error);
+
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: error.message }),
+      headers,
+      body: JSON.stringify({ message: "Błąd serwera: " + error.message }),
     };
   }
 };

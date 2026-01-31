@@ -5,8 +5,20 @@ import { query } from "./utils/db";
 export const handler = async (
   event: HandlerEvent
 ): Promise<HandlerResponse> => {
-  if (event.httpMethod !== "POST")
-    return { statusCode: 405, body: "Method Not Allowed" };
+  // Nagłówki CORS
+  const headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 200, headers, body: "" };
+  }
+
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, headers, body: "Method Not Allowed" };
+  }
 
   try {
     const { username, password } = JSON.parse(event.body || "{}");
@@ -14,6 +26,7 @@ export const handler = async (
     if (!username || !password) {
       return {
         statusCode: 400,
+        headers,
         body: JSON.stringify({ message: "Podaj login i hasło." }),
       };
     }
@@ -25,15 +38,15 @@ export const handler = async (
     if (userExists.rows.length > 0) {
       return {
         statusCode: 400,
+        headers,
         body: JSON.stringify({ message: "Użytkownik już istnieje." }),
       };
     }
 
-    // Haszowanie hasła
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    //  Zapis do bazy
+    // Zapis do bazy
     const newUser = await query(
       "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id",
       [username, hashedPassword]
@@ -41,7 +54,7 @@ export const handler = async (
 
     const userId = newUser.rows[0].id;
 
-    // Dodaj  10 000 PLN na start
+    // Dodaj 10 000 PLN na start
     await query(
       "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
       [userId, "PLN", 10000]
@@ -49,12 +62,16 @@ export const handler = async (
 
     return {
       statusCode: 201,
+      headers,
       body: JSON.stringify({ message: "Konto utworzone pomyślnie!" }),
     };
   } catch (error: any) {
+    console.error("Błąd w auth-register:", error);
+
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: error.message }),
+      headers,
+      body: JSON.stringify({ message: "Błąd serwera: " + error.message }),
     };
   }
 };
