@@ -40,7 +40,7 @@ export const handler = async (
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ token, username: user.username }),
+      body: JSON.stringify({ token, username: user.username, userId: user.id }),
     };
   } catch (error: any) {
     return {

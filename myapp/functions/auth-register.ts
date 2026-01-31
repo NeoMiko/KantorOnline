@@ -39,10 +39,12 @@ export const handler = async (
       [username, hashedPassword]
     );
 
+    const userId = newUser.rows[0].id;
+
     // Dodaj  10 000 PLN na start
     await query(
-      "INSERT INTO temp_balances (waluta_skrot, saldo) VALUES ($1, $2)",
-      ["PLN", 10000]
+      "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
+      [userId, "PLN", 10000]
     );
 
     return {
