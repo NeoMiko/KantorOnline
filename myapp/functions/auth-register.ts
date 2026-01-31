@@ -1,5 +1,6 @@
 import { HandlerResponse, HandlerEvent } from "@netlify/functions";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { query } from "./utils/db";
 
 export const handler = async (
@@ -21,7 +22,7 @@ export const handler = async (
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ message: "Method Not Allowed" }),
+      body: JSON.stringify({ message: "Metoda niedozwolona." }),
     };
   }
 
@@ -43,41 +44,54 @@ export const handler = async (
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ message: "Użytkownik już istnieje." }),
+        body: JSON.stringify({
+          message: "Użytkownik o takiej nazwie już istnieje.",
+        }),
       };
     }
+
+    await query("BEGIN");
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Rejestracja użytkownika
-    const newUser = await query(
+    const userRes = await query(
       "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id",
       [username, hashedPassword]
     );
 
-    try {
-      const newUser = await query(
-        "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id",
-        [username, hashedPassword]
-      );
+    const userId = userRes.rows[0].id;
 
-      const userId = newUser.rows[0].id;
+    const currencies = ["PLN", "USD", "EUR", "CHF", "GBP"];
+    for (const code of currencies) {
+      await query(
+        "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
+        [userId, code, code === "PLN" ? 10000 : 0]
+      );
+    }
+
+    await query("COMMIT");
+
+    const secret = process.env.JWT_SECRET || "temporary_secret_key_123";
+    const token = jwt.sign({ userId, username }, secret, { expiresIn: "1d" });
 
     return {
       statusCode: 201,
       headers,
       body: JSON.stringify({
         message: "Konto utworzone pomyślnie!",
-        userId: userId,
+        token,
+        userId: String(userId),
+        username,
       }),
     };
   } catch (error: any) {
-    console.error("Błąd w auth-register:", error);
+    await query("ROLLBACK").catch(() => {});
+    console.error("BŁĄD REJESTRACJI:", error);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({ message: "Błąd serwera: " + error.message }),
     };
   }
-}
+};
