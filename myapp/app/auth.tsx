@@ -25,14 +25,12 @@ export default function AuthScreen() {
   const dispatch = useDispatch();
 
   const handleAuth = async () => {
-   
     if (!username.trim() || !password.trim()) {
-      Alert.alert("Błąd", "Proszę wypełnić wszystkie pola.");
-      return;
-    }
-
-    if (password.length < 6 && !isLogin) {
-      Alert.alert("Błąd", "Hasło musi mieć co najmniej 6 znaków.");
+      if (Platform.OS === 'web') {
+        window.alert("Błąd: Proszę wypełnić wszystkie pola.");
+      } else {
+        Alert.alert("Błąd", "Proszę wypełnić wszystkie pola.");
+      }
       return;
     }
 
@@ -42,59 +40,53 @@ export default function AuthScreen() {
     try {
       const response = await fetch(`https://kantoronline.netlify.app/.netlify/functions/${endpoint}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
             username: username.trim(), 
             password: password 
         }),
       });
 
-      const contentType = response.headers.get("content-type");
-      let data;
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json();
-      } else {
-        throw new Error("Serwer zwrócił niepoprawny format danych.");
-      }
+      const data = await response.json();
 
       if (response.ok) {
-        if (isLogin) {
-         
-          dispatch(loginSuccess({ 
-            token: data.token, 
-            userId: data.userId.toString() 
-          }));
-          
-          Alert.alert("Sukces", `Witaj ponownie, ${username}!`);
+        // Zapisujemy dane
+        dispatch(loginSuccess({ 
+          token: data.token, 
+          userId: data.userId.toString() 
+        }));
+
+        const successTitle = isLogin ? "Witaj!" : "Sukces!";
+        const successMsg = isLogin 
+          ? `Zalogowano pomyślnie jako ${username}.` 
+          : "Konto utworzone! Otrzymałeś 10 000 PLN na start.";
+
+        // --- OBSŁUGA ALERTÓW ZALEŻNIE OD PLATFORMY ---
+        if (Platform.OS === 'web') {
+          window.alert(`${successTitle}\n${successMsg}`);
           router.replace('/(tabs)/exchange');
         } else {
-        
-          dispatch(loginSuccess({ 
-            token: data.token, 
-            userId: data.userId.toString() 
-          }));
-
-          Alert.alert(
-            "Konto utworzone!", 
-            "Twoja rejestracja przebiegła pomyślnie. Na start otrzymujesz 10 000 PLN!",
-            [{ 
-              text: "Zaczynamy!", 
-              onPress: () => router.replace('/(tabs)/exchange') 
-            }]
-          );
+          Alert.alert(successTitle, successMsg, [
+            { text: "OK", onPress: () => router.replace('/(tabs)/exchange') }
+          ]);
         }
+
       } else {
-        
-        Alert.alert("Błąd", data.message || "Wystąpił problem z autoryzacją.");
+        // Alerty błędów z backendu
+        const errorMsg = data.message || "Wystąpił problem z autoryzacją.";
+        if (Platform.OS === 'web') {
+          window.alert("Błąd: " + errorMsg);
+        } else {
+          Alert.alert("Błąd", errorMsg);
+        }
       }
     } catch (error: any) {
-      console.error("BŁĄD AUTH:", error);
-      Alert.alert(
-        "Błąd połączenia", 
-        "Nie udało się skontaktować z serwerem. Sprawdź połączenie z internetem."
-      );
+      const connError = "Nie udało się skontaktować z serwerem. Sprawdź internet.";
+      if (Platform.OS === 'web') {
+        window.alert(connError);
+      } else {
+        Alert.alert("Błąd połączenia", connError);
+      }
     } finally {
       setLoading(false);
     }
