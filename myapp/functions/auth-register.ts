@@ -15,7 +15,7 @@ export const handler = async (
   };
 
   if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers, body: "" };
+    return { statusCode: 204, headers, body: "" };
   }
 
   try {
@@ -44,12 +44,10 @@ export const handler = async (
     const hashedPassword = await bcrypt.hash(password, salt);
 
     await query("BEGIN");
-
     const newUser = await query(
       "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id",
       [username, hashedPassword]
     );
-
     const userId = newUser.rows[0].id;
 
     const currencies = ["PLN", "USD", "EUR", "CHF", "GBP"];
@@ -59,11 +57,13 @@ export const handler = async (
         [userId, code, code === "PLN" ? 10000 : 0]
       );
     }
-
     await query("COMMIT");
 
-    const secret = process.env.JWT_SECRET || "temporary_secret_key_123";
-    const token = jwt.sign({ userId, username }, secret, { expiresIn: "1d" });
+    const token = jwt.sign(
+      { userId, username },
+      process.env.JWT_SECRET || "temporary_secret_key_123",
+      { expiresIn: "1d" }
+    );
 
     return {
       statusCode: 201,
@@ -77,7 +77,6 @@ export const handler = async (
     };
   } catch (error: any) {
     await query("ROLLBACK").catch(() => {});
-    console.error("CRASH SERWERA:", error.message);
     return {
       statusCode: 500,
       headers,
