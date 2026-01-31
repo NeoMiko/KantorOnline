@@ -20,19 +20,11 @@ export default function ExchangeScreen() {
   const [transactionType, setTransactionType] = useState<'KUPNO' | 'SPRZEDAZ'>('KUPNO');
   const [isProcessing, setIsProcessing] = useState(false);
 
-<<<<<<< HEAD
   // Aktualizacja kursów z NBP 
   useEffect(() => {
     if (isAuthenticated) {
       dispatch(fetchCurrentRates());
       const interval = setInterval(() => dispatch(fetchCurrentRates()), 600000); // 10 min
-=======
-  // Aktualizacja kursow z NBP co 10s
-  useEffect(() => {
-    if (isAuthenticated) {
-      dispatch(fetchCurrentRates());
-      const interval = setInterval(() => dispatch(fetchCurrentRates()), 10000);
->>>>>>> parent of 29f015e (small fix)
       return () => clearInterval(interval);
     }
   }, [isAuthenticated, dispatch]);
