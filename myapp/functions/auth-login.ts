@@ -8,43 +8,34 @@ export const handler = async (
 ): Promise<HandlerResponse> => {
   const headers = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-Requested-With",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Content-Type": "application/json",
   };
 
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers,
-      body: "",
-    };
-  }
-
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ message: "Metoda niedozwolona" }),
-    };
+    return { statusCode: 200, headers, body: "" };
   }
 
   try {
-    if (!event.body) {
+    if (event.httpMethod !== "POST") {
       return {
-        statusCode: 400,
+        statusCode: 405,
         headers,
-        body: JSON.stringify({ message: "Brak danych w żądaniu" }),
+        body: JSON.stringify({ message: "Użyj POST" }),
       };
     }
 
-    const { username, password } = JSON.parse(event.body);
+    console.log("Otrzymano body:", event.body);
+
+    const { username, password } = JSON.parse(event.body || "{}");
 
     if (!username || !password) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ message: "Login i hasło są wymagane" }),
+        body: JSON.stringify({ message: "Brak danych" }),
       };
     }
 
@@ -56,24 +47,25 @@ export const handler = async (
       return {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ message: "Nieprawidłowy login lub hasło." }),
+        body: JSON.stringify({ message: "Użytkownik nie istnieje." }),
       };
     }
 
     const user = res.rows[0];
+
     const isMatch = await bcrypt.compare(password, user.password_hash);
 
     if (!isMatch) {
       return {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ message: "Nieprawidłowy login lub hasło." }),
+        body: JSON.stringify({ message: "Błędne hasło." }),
       };
     }
 
     const token = jwt.sign(
       { userId: user.id, username: user.username },
-      process.env.JWT_SECRET || "secret_klucz_do_zmiany",
+      process.env.JWT_SECRET || "twoj_staly_klucz_123",
       { expiresIn: "1d" }
     );
 
@@ -82,18 +74,17 @@ export const handler = async (
       headers,
       body: JSON.stringify({
         token,
-        username: user.username,
         userId: user.id,
+        username: user.username,
       }),
     };
   } catch (error: any) {
-    console.error("Błąd w auth-login:", error);
-
+    console.error("CRITICAL ERROR:", error.message);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
-        message: "Błąd serwera",
+        message: "Błąd bazy danych",
         error: error.message,
       }),
     };
