@@ -15,11 +15,7 @@ export const handler = async (
   };
 
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers,
-      body: "",
-    };
+    return { statusCode: 200, headers, body: "" };
   }
 
   try {
@@ -27,9 +23,11 @@ export const handler = async (
       return {
         statusCode: 405,
         headers,
-        body: JSON.stringify({ message: "Metoda niedozwolona. Użyj POST." }),
+        body: JSON.stringify({ message: "Użyj POST" }),
       };
     }
+
+    console.log("Otrzymano body:", event.body);
 
     const { username, password } = JSON.parse(event.body || "{}");
 
@@ -37,7 +35,7 @@ export const handler = async (
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ message: "Brak loginu lub hasła." }),
+        body: JSON.stringify({ message: "Brak danych" }),
       };
     }
 
@@ -76,18 +74,17 @@ export const handler = async (
       headers,
       body: JSON.stringify({
         token,
-        userId: String(user.id),
+        userId: user.id,
         username: user.username,
       }),
     };
   } catch (error: any) {
-    console.error("CRITICAL AUTH ERROR:", error.message);
-
+    console.error("CRITICAL ERROR:", error.message);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
-        message: "Błąd serwera podczas logowania.",
+        message: "Błąd bazy danych",
         error: error.message,
       }),
     };
