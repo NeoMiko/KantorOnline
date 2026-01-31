@@ -8,7 +8,8 @@ export const handler = async (
 ): Promise<HandlerResponse> => {
   const headers = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-Requested-With",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Content-Type": "application/json",
   };
@@ -67,6 +68,22 @@ export const handler = async (
       "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
       [userId, "PLN", 10000]
     );
+    await query(
+      "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
+      [userId, "USD", 0]
+    );
+    await query(
+      "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
+      [userId, "EUR", 0]
+    );
+    await query(
+      "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
+      [userId, "CHF", 0]
+    );
+    await query(
+      "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
+      [userId, "GBP", 0]
+    );
 
     const secret = process.env.JWT_SECRET || "temporary_secret_key_123";
     const token = jwt.sign({ userId: userId, username: username }, secret, {
@@ -92,7 +109,10 @@ export const handler = async (
 
     return {
       statusCode: 500,
-      headers,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         message: "Wystąpił błąd serwera podczas rejestracji.",
         details: error.message,

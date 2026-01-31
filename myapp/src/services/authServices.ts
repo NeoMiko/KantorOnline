@@ -3,14 +3,14 @@ import { loginSuccess, setAuthError } from "../store/slices/authSlice";
 import { API_ENDPOINTS } from "../constants/api";
 
 export const loginUser =
-  (email: string, haslo: string) => async (dispatch: AppDispatch) => {
+  (username: string, password: string) => async (dispatch: AppDispatch) => {
     try {
       const response = await fetch(API_ENDPOINTS.AUTH_LOGIN, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, haslo }),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
@@ -35,14 +35,14 @@ export const loginUser =
   };
 
 export const registerUser =
-  (email: string, haslo: string) => async (dispatch: AppDispatch) => {
+  (username: string, password: string) => async (dispatch: AppDispatch) => {
     try {
       const response = await fetch(API_ENDPOINTS.AUTH_REGISTER, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, haslo }),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
