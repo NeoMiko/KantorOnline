@@ -15,15 +15,7 @@ export const handler = async (
   };
 
   if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 204, headers, body: "" };
-  }
-
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ message: "Metoda niedozwolona." }),
-    };
+    return { statusCode: 200, headers, body: "" };
   }
 
   try {
@@ -33,7 +25,7 @@ export const handler = async (
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ message: "Podaj login i hasło." }),
+        body: JSON.stringify({ message: "Podaj dane." }),
       };
     }
 
@@ -44,23 +36,21 @@ export const handler = async (
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({
-          message: "Użytkownik o takiej nazwie już istnieje.",
-        }),
+        body: JSON.stringify({ message: "Użytkownik już istnieje." }),
       };
     }
-
-    await query("BEGIN");
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const userRes = await query(
+    await query("BEGIN");
+
+    const newUser = await query(
       "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id",
       [username, hashedPassword]
     );
 
-    const userId = userRes.rows[0].id;
+    const userId = newUser.rows[0].id;
 
     const currencies = ["PLN", "USD", "EUR", "CHF", "GBP"];
     for (const code of currencies) {
@@ -79,7 +69,7 @@ export const handler = async (
       statusCode: 201,
       headers,
       body: JSON.stringify({
-        message: "Konto utworzone pomyślnie!",
+        message: "Konto utworzone!",
         token,
         userId: String(userId),
         username,
@@ -87,7 +77,7 @@ export const handler = async (
     };
   } catch (error: any) {
     await query("ROLLBACK").catch(() => {});
-    console.error("BŁĄD REJESTRACJI:", error);
+    console.error("CRASH SERWERA:", error.message);
     return {
       statusCode: 500,
       headers,

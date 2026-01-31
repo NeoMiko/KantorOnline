@@ -26,10 +26,11 @@ export default function AuthScreen() {
 
   const handleAuth = async () => {
     if (!username.trim() || !password.trim()) {
+      const fieldError = "Proszę wypełnić wszystkie pola.";
       if (Platform.OS === 'web') {
-        window.alert("Błąd: Proszę wypełnić wszystkie pola.");
+        window.alert("Błąd: " + fieldError);
       } else {
-        Alert.alert("Błąd", "Proszę wypełnić wszystkie pola.");
+        Alert.alert("Błąd", fieldError);
       }
       return;
     }
@@ -40,7 +41,10 @@ export default function AuthScreen() {
     try {
       const response = await fetch(`https://kantoronline.netlify.app/.netlify/functions/${endpoint}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({ 
             username: username.trim(), 
             password: password 
@@ -50,7 +54,6 @@ export default function AuthScreen() {
       const data = await response.json();
 
       if (response.ok) {
-        // Zapisujemy dane
         dispatch(loginSuccess({ 
           token: data.token, 
           userId: data.userId.toString() 
@@ -61,7 +64,6 @@ export default function AuthScreen() {
           ? `Zalogowano pomyślnie jako ${username}.` 
           : "Konto utworzone! Otrzymałeś 10 000 PLN na start.";
 
-        // --- OBSŁUGA ALERTÓW ZALEŻNIE OD PLATFORMY ---
         if (Platform.OS === 'web') {
           window.alert(`${successTitle}\n${successMsg}`);
           router.replace('/(tabs)/exchange');
@@ -72,7 +74,6 @@ export default function AuthScreen() {
         }
 
       } else {
-        // Alerty błędów z backendu
         const errorMsg = data.message || "Wystąpił problem z autoryzacją.";
         if (Platform.OS === 'web') {
           window.alert("Błąd: " + errorMsg);
@@ -81,11 +82,16 @@ export default function AuthScreen() {
         }
       }
     } catch (error: any) {
-      const connError = "Nie udało się skontaktować z serwerem. Sprawdź internet.";
+      console.error("DEBUG - Szczegóły błędu logowania:", error);
+      
+      const connError = error.message === 'Failed to fetch' 
+        ? "Błąd połączenia (CORS lub brak serwera). Sprawdź konsolę F12."
+        : `Błąd sieci: ${error.message}`;
+
       if (Platform.OS === 'web') {
         window.alert(connError);
       } else {
-        Alert.alert("Błąd połączenia", connError);
+        Alert.alert("Problem z połączeniem", connError);
       }
     } finally {
       setLoading(false);
