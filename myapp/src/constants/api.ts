@@ -1,4 +1,4 @@
-const deployedBaseUrl = "https://kantoronline.netlify.app/.netlify/functions";
+const deployedBaseUrl = "/api";
 
 export const API_BASE_URL = deployedBaseUrl;
 

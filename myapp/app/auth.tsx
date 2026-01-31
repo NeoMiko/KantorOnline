@@ -39,7 +39,7 @@ export default function AuthScreen() {
     const endpoint = isLogin ? 'auth-login' : 'auth-register';
     
     try {
-      const response = await fetch(`https://kantoronline.netlify.app/.netlify/functions/${endpoint}`, {
+      const response = await fetch(`/api/${endpoint}`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
