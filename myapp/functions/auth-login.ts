@@ -62,7 +62,7 @@ export const handler = async (
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         token,
-        userId: user.id,
+        userId: String(user.id),
         username: user.username,
       }),
     };

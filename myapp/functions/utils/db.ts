@@ -5,7 +5,9 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false,
   },
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 30000,
+  idleTimeoutMillis: 30000,
+  max: 10,
 });
 
 export const query = async (text: string, params?: any[]) => {
@@ -17,6 +19,7 @@ export const query = async (text: string, params?: any[]) => {
     return res;
   } catch (error: any) {
     console.error("BŁĄD BAZY DANYCH:", error.message);
+    console.error("Stack trace:", error.stack);
     throw error;
   }
 };

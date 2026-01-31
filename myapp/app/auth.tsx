@@ -56,7 +56,7 @@ export default function AuthScreen() {
       if (response.ok) {
         dispatch(loginSuccess({ 
           token: data.token, 
-          userId: data.userId.toString() 
+          userId: String(data.userId)
         }));
 
         const successTitle = isLogin ? "Witaj!" : "Sukces!";
