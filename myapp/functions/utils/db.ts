@@ -5,7 +5,9 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false,
   },
-  connectionTimeoutMillis: 5000,
+
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
 });
 
 export const query = async (text: string, params?: any[]) => {
@@ -13,10 +15,11 @@ export const query = async (text: string, params?: any[]) => {
   try {
     const res = await pool.query(text, params);
     const duration = Date.now() - start;
-    console.log("Wykonano zapytanie:", { text, duration, rows: res.rowCount });
+
+    console.log(`[DB] Query executed in ${duration}ms. Rows: ${res.rowCount}`);
     return res;
-  } catch (error) {
-    console.error("BŁĄD BAZY DANYCH:", error);
+  } catch (error: any) {
+    console.error("BŁĄD BAZY DANYCH:", error.message);
     throw error;
   }
 };
