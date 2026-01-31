@@ -26,7 +26,7 @@ export default function WalletScreen() {
 
     const handleLogout = () => {
         dispatch(logout());
-        router.replace('./auth'); 
+        router.replace('../auth'); 
     };
 
     // Ekran braku autoryzacji

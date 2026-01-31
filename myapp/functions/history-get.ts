@@ -18,26 +18,32 @@ const historyHandler: Handler = async (
   context: HandlerContext
 ): Promise<HandlerResponse> => {
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: CORS_HEADERS,
-      body: "",
-    };
+    return { statusCode: 204, headers: CORS_HEADERS, body: "" };
   }
 
   try {
     const userId = event.queryStringParameters?.userId;
 
-    if (!userId) {
+    console.log("Otrzymano zapytanie o historię dla userId:", userId);
+
+    if (!userId || userId === "undefined" || userId === "null") {
       return {
         statusCode: 400,
         headers: CORS_HEADERS,
-        body: JSON.stringify({ message: "Brak identyfikatora użytkownika." }),
+        body: JSON.stringify({
+          message:
+            "Brak identyfikatora użytkownika lub identyfikator nieprawidłowy.",
+          receivedUserId: userId,
+        }),
       };
     }
 
     const result = await query(
-      `SELECT * FROM transaction_history WHERE user_id = $1 ORDER BY data DESC LIMIT 20`,
+      `SELECT id, typ, waluta_z, waluta_do, kwota_z, kwota_do, kurs, data 
+       FROM transaction_history 
+       WHERE user_id = $1 
+       ORDER BY data DESC 
+       LIMIT 50`,
       [userId]
     );
 
@@ -47,14 +53,19 @@ const historyHandler: Handler = async (
         ...CORS_HEADERS,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ history: result.rows }),
+      body: JSON.stringify({
+        success: true,
+        history: result.rows,
+      }),
     };
   } catch (error: any) {
     console.error("BŁĄD HISTORY-GET:", error.message);
     return {
       statusCode: 500,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ message: "Błąd pobierania historii." }),
+      body: JSON.stringify({
+        message: "Błąd serwera podczas pobierania historii.",
+      }),
     };
   }
 };
