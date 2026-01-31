@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react'; 
 import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
 import { useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router'; 
 import { RootState } from '../../src/store/store';
 
 interface Transaction {
@@ -17,16 +18,16 @@ interface Transaction {
 
 export default function HistoryScreen() {
   const [history, setHistory] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); 
 
   const { token, userId } = useSelector((state: RootState) => state.auth);
-  
   const API_URL = "https://kantoronline.netlify.app/.netlify/functions";
 
   const fetchHistory = async () => {
+    if (!token || !userId) return;
+    
     try {
       setLoading(true);
-     
       const response = await fetch(`${API_URL}/history-get?userId=${userId}`, {
         method: 'GET',
         headers: { 
@@ -35,9 +36,7 @@ export default function HistoryScreen() {
         }
       });
 
-      if (!response.ok) {
-        throw new Error(`Błąd: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Błąd: ${response.status}`);
 
       const data = await response.json();
       setHistory(data.history || []);
@@ -48,12 +47,12 @@ export default function HistoryScreen() {
     }
   };
 
-  useEffect(() => {
-   
-    if (token && userId) {
+  
+  useFocusEffect(
+    useCallback(() => {
       fetchHistory();
-    }
-  }, [token, userId]);
+    }, [token, userId])
+  );
 
   const renderItem = ({ item }: { item: Transaction }) => (
     <View style={styles.item}>
@@ -72,7 +71,9 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Text style={styles.title}>Ostatnie transakcje</Text>
-      {loading ? (
+      
+     
+      {loading && history.length === 0 ? (
         <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 20 }} />
       ) : (
         <FlatList
@@ -87,6 +88,7 @@ export default function HistoryScreen() {
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa', padding: 15 },

@@ -25,9 +25,14 @@ export default function AuthScreen() {
   const dispatch = useDispatch();
 
   const handleAuth = async () => {
-    //  Walidacja pól
+   
     if (!username.trim() || !password.trim()) {
       Alert.alert("Błąd", "Proszę wypełnić wszystkie pola.");
+      return;
+    }
+
+    if (password.length < 6 && !isLogin) {
+      Alert.alert("Błąd", "Hasło musi mieć co najmniej 6 znaków.");
       return;
     }
 
@@ -35,20 +40,17 @@ export default function AuthScreen() {
     const endpoint = isLogin ? 'auth-login' : 'auth-register';
     
     try {
-      //  Wysłanie zapytania do Netlify
       const response = await fetch(`https://kantoronline.netlify.app/.netlify/functions/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        
         body: JSON.stringify({ 
             username: username.trim(), 
             password: password 
         }),
       });
 
-      
       const contentType = response.headers.get("content-type");
       let data;
       if (contentType && contentType.includes("application/json")) {
@@ -59,30 +61,39 @@ export default function AuthScreen() {
 
       if (response.ok) {
         if (isLogin) {
-          //  Zapisujemy dane w Redux 
+         
           dispatch(loginSuccess({ 
             token: data.token, 
             userId: data.userId.toString() 
           }));
           
-          Alert.alert("Sukces", "Zalogowano pomyślnie!");
-          // Przekierowanie do głównej części aplikacji
+          Alert.alert("Sukces", `Witaj ponownie, ${username}!`);
           router.replace('/(tabs)/exchange');
         } else {
-          // Rejestracja zakończona sukcesem
-          Alert.alert("Sukces", "Konto utworzone! Możesz się teraz zalogować.");
-          setIsLogin(true);
-          setPassword(''); 
+        
+          dispatch(loginSuccess({ 
+            token: data.token, 
+            userId: data.userId.toString() 
+          }));
+
+          Alert.alert(
+            "Konto utworzone!", 
+            "Twoja rejestracja przebiegła pomyślnie. Na start otrzymujesz 10 000 PLN!",
+            [{ 
+              text: "Zaczynamy!", 
+              onPress: () => router.replace('/(tabs)/exchange') 
+            }]
+          );
         }
       } else {
-        // Obsługa błędów z backendu 
+        
         Alert.alert("Błąd", data.message || "Wystąpił problem z autoryzacją.");
       }
     } catch (error: any) {
       console.error("BŁĄD AUTH:", error);
       Alert.alert(
         "Błąd połączenia", 
-        "Nie udało się skontaktować z serwerem. Sprawdź czy masz połączenie z internetem i czy backend działa."
+        "Nie udało się skontaktować z serwerem. Sprawdź połączenie z internetem."
       );
     } finally {
       setLoading(false);
@@ -94,7 +105,7 @@ export default function AuthScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
           <Text style={styles.title}>{isLogin ? 'Witaj z powrotem' : 'Stwórz konto'}</Text>
           <Text style={styles.subtitle}>
@@ -102,15 +113,14 @@ export default function AuthScreen() {
           </Text>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Adres Email / Login</Text>
+            <Text style={styles.label}>Login / Nazwa użytkownika</Text>
             <TextInput
               style={styles.input}
-              placeholder="np. kamil@domena.pl"
+              placeholder="Wpisz swój login"
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
               autoCorrect={false}
-              keyboardType="email-address"
             />
           </View>
 
@@ -141,7 +151,10 @@ export default function AuthScreen() {
 
           <TouchableOpacity 
             style={styles.switchButton} 
-            onPress={() => setIsLogin(!isLogin)}
+            onPress={() => {
+                setIsLogin(!isLogin);
+                setPassword(''); 
+            }}
             disabled={loading}
           >
             <Text style={styles.switchText}>

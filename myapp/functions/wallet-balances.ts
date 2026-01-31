@@ -26,8 +26,19 @@ const walletHandler: Handler = async (
   }
 
   try {
+    const userId = event.queryStringParameters?.userId;
+
+    if (!userId) {
+      return {
+        statusCode: 400,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ message: "Brak userId w zapytaniu." }),
+      };
+    }
+
     const result = await query(
-      "SELECT waluta_skrot, saldo FROM temp_balances ORDER BY waluta_skrot ASC"
+      "SELECT waluta_skrot, saldo FROM temp_balances WHERE user_id = $1 ORDER BY waluta_skrot ASC",
+      [userId]
     );
 
     return {
