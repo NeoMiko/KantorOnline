@@ -14,7 +14,6 @@ export const handler = async (
     "Content-Type": "application/json",
   };
 
-  // Obsługa zapytania wstępnego
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 204, headers, body: "" };
   }
@@ -30,7 +29,6 @@ export const handler = async (
   try {
     const { username, password } = JSON.parse(event.body || "{}");
 
-    // Walidacja wejścia
     if (!username || !password) {
       return {
         statusCode: 400,
@@ -39,7 +37,6 @@ export const handler = async (
       };
     }
 
-    // Sprawdzenie czy użytkownik już istnieje
     const userExists = await query("SELECT id FROM users WHERE username = $1", [
       username,
     ]);
@@ -57,64 +54,59 @@ export const handler = async (
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const newUser = await query(
-      "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id",
-      [username, hashedPassword]
-    );
+    await query("BEGIN");
 
-    const userId = newUser.rows[0].id;
+    try {
+      const newUser = await query(
+        "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id",
+        [username, hashedPassword]
+      );
 
-    await query(
-      "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
-      [userId, "PLN", 10000]
-    );
-    await query(
-      "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
-      [userId, "USD", 0]
-    );
-    await query(
-      "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
-      [userId, "EUR", 0]
-    );
-    await query(
-      "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
-      [userId, "CHF", 0]
-    );
-    await query(
-      "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
-      [userId, "GBP", 0]
-    );
+      const userId = newUser.rows[0].id;
 
-    const secret = process.env.JWT_SECRET || "temporary_secret_key_123";
-    const token = jwt.sign({ userId: userId, username: username }, secret, {
-      expiresIn: "1d",
-    });
+      const currencies = [
+        { code: "PLN", amount: 10000 },
+        { code: "USD", amount: 0 },
+        { code: "EUR", amount: 0 },
+        { code: "CHF", amount: 0 },
+        { code: "GBP", amount: 0 },
+      ];
 
-    console.log(
-      `Pomyślnie zarejestrowano użytkownika: ${username} (ID: ${userId})`
-    );
+      for (const cur of currencies) {
+        await query(
+          "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
+          [userId, cur.code, cur.amount]
+        );
+      }
 
-    return {
-      statusCode: 201,
-      headers,
-      body: JSON.stringify({
-        message: "Konto utworzone pomyślnie!",
-        token: token,
-        userId: userId,
-        username: username,
-      }),
-    };
+      await query("COMMIT");
+
+      const secret = process.env.JWT_SECRET || "temporary_secret_key_123";
+      const token = jwt.sign({ userId: userId, username: username }, secret, {
+        expiresIn: "1d",
+      });
+
+      return {
+        statusCode: 201,
+        headers,
+        body: JSON.stringify({
+          message: "Konto utworzone pomyślnie!",
+          token: token,
+          userId: userId,
+          username: username,
+        }),
+      };
+    } catch (dbError: any) {
+      await query("ROLLBACK");
+      throw dbError;
+    }
   } catch (error: any) {
     console.error("BŁĄD REJESTRACJI:", error);
-
     return {
       statusCode: 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
-        message: "Wystąpił błąd serwera podczas rejestracji.",
+        message: "Błąd serwera. Prawdopodobny problem z portfelem w bazie.",
         details: error.message,
       }),
     };
