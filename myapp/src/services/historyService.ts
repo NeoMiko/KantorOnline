@@ -1,5 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { API_ENDPOINTS } from "../constants/api";
+
+const API_URL = "https://kantoronline.netlify.app/.netlify/functions";
 
 export const fetchTransactionHistory = createAsyncThunk(
   "history/fetch",
@@ -8,16 +9,13 @@ export const fetchTransactionHistory = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const response = await fetch(
-        `${API_ENDPOINTS.HISTORY_GET}?userId=${userId}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const response = await fetch(`${API_URL}/history-get?userId=${userId}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -27,7 +25,7 @@ export const fetchTransactionHistory = createAsyncThunk(
       const data = await response.json();
       return data.history;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.message || "Błąd sieci");
     }
   }
 );

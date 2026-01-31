@@ -16,19 +16,29 @@ interface Transaction {
 }
 
 export default function HistoryScreen() {
-
   const [history, setHistory] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  const token = useSelector((state: RootState) => state.auth.token);
+
+  const { token, userId } = useSelector((state: RootState) => state.auth);
   
   const API_URL = "https://kantoronline.netlify.app/.netlify/functions";
 
   const fetchHistory = async () => {
     try {
-      const response = await fetch(`${API_URL}/history-get`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      setLoading(true);
+     
+      const response = await fetch(`${API_URL}/history-get?userId=${userId}`, {
+        method: 'GET',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
+
+      if (!response.ok) {
+        throw new Error(`Błąd: ${response.status}`);
+      }
+
       const data = await response.json();
       setHistory(data.history || []);
     } catch (e) {
@@ -39,8 +49,11 @@ export default function HistoryScreen() {
   };
 
   useEffect(() => {
-    if (token) fetchHistory();
-  }, [token]);
+   
+    if (token && userId) {
+      fetchHistory();
+    }
+  }, [token, userId]);
 
   const renderItem = ({ item }: { item: Transaction }) => (
     <View style={styles.item}>
@@ -51,6 +64,7 @@ export default function HistoryScreen() {
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={styles.amount}>-{Number(item.kwota_z).toFixed(2)} {item.waluta_z}</Text>
         <Text style={styles.received}>+{Number(item.kwota_do).toFixed(2)} {item.waluta_do}</Text>
+        <Text style={styles.rate}>kurs: {Number(item.kurs).toFixed(4)}</Text>
       </View>
     </View>
   );
@@ -59,13 +73,15 @@ export default function HistoryScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <Text style={styles.title}>Ostatnie transakcje</Text>
       {loading ? (
-        <ActivityIndicator size="large" color="#007bff" />
+        <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 20 }} />
       ) : (
         <FlatList
           data={history}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
           ListEmptyComponent={<Text style={styles.empty}>Brak transakcji w historii.</Text>}
+          refreshing={loading}
+          onRefresh={fetchHistory} 
         />
       )}
     </SafeAreaView>
@@ -85,5 +101,6 @@ const styles = StyleSheet.create({
   pair: { fontSize: 16, fontWeight: 'bold', color: '#333' },
   amount: { color: '#dc3545', fontWeight: '700', fontSize: 14 },
   received: { color: '#28a745', fontWeight: '700', fontSize: 14, marginTop: 2 },
+  rate: { fontSize: 10, color: '#999', marginTop: 2 }, 
   empty: { textAlign: 'center', marginTop: 50, color: '#999', fontSize: 16 }
 });
