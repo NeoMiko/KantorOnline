@@ -30,7 +30,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          title: 'Zlecenia',
+          title: 'Historia',
           tabBarIcon: ({ color }) => <FontAwesome name="list-alt" size={24} color={color} />,
         }}
       />

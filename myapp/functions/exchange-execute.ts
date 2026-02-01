@@ -41,7 +41,12 @@ const exchangeHandler: Handler = async (
       };
     }
 
-    const amountToReceive = amount * rate;
+    let amountToReceive = 0;
+    if (fromCurrency === "PLN") {
+      amountToReceive = amount / rate;
+    } else {
+      amountToReceive = amount * rate;
+    }
 
     await query("BEGIN");
     try {
@@ -52,7 +57,7 @@ const exchangeHandler: Handler = async (
 
       if (
         balanceCheck.rows.length === 0 ||
-        balanceCheck.rows[0].saldo < amount
+        Number(balanceCheck.rows[0].saldo) < amount
       ) {
         throw new Error("Niewystarczające środki.");
       }
@@ -63,7 +68,10 @@ const exchangeHandler: Handler = async (
       );
 
       await query(
-        "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3) ON CONFLICT (user_id, waluta_skrot) DO UPDATE SET saldo = temp_balances.saldo + $3",
+        "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) \
+         VALUES ($1, $2, $3) \
+         ON CONFLICT (user_id, waluta_skrot) \
+         DO UPDATE SET saldo = temp_balances.saldo + $3",
         [userId, toCurrency, amountToReceive]
       );
 
@@ -80,7 +88,9 @@ const exchangeHandler: Handler = async (
         body: JSON.stringify({
           success: true,
           message: "Wymiana zakończona sukcesem!",
-          details: `Sprzedano: ${amount} ${fromCurrency}, Otrzymano: ${amountToReceive.toFixed(
+          details: `Sprzedano: ${amount.toFixed(
+            2
+          )} ${fromCurrency}, Otrzymano: ${amountToReceive.toFixed(
             2
           )} ${toCurrency}`,
         }),
