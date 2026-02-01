@@ -4,15 +4,42 @@ import { query } from "./utils/db";
 export const handler = async (
   event: HandlerEvent
 ): Promise<HandlerResponse> => {
-  if (event.httpMethod !== "POST")
-    return { statusCode: 405, body: "Method Not Allowed" };
+  const headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Content-Type": "application/json",
+  };
+
+  if (event.httpMethod === "OPTIONS")
+    return { statusCode: 204, headers, body: "" };
 
   try {
-    const { email, password } = JSON.parse(event.body || "{}");
+    const { username, password } = JSON.parse(event.body || "{}");
+
+    if (!username || !password) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ message: "Username i hasło są wymagane." }),
+      };
+    }
+
+    const existingUser = await query(
+      "SELECT id FROM users WHERE username = $1",
+      [username]
+    );
+    if (existingUser.rows.length > 0) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ message: "Użytkownik już istnieje." }),
+      };
+    }
 
     const userResult = await query(
-      "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id",
-      [email, password]
+      "INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id",
+      [username, password]
     );
     const userId = userResult.rows[0].id;
 
@@ -26,10 +53,7 @@ export const handler = async (
 
     return {
       statusCode: 201,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers,
       body: JSON.stringify({
         userId: userId.toString(),
         message: "Konto utworzone!",
@@ -38,7 +62,7 @@ export const handler = async (
   } catch (error: any) {
     return {
       statusCode: 500,
-      headers: { "Access-Control-Allow-Origin": "*" },
+      headers,
       body: JSON.stringify({ message: error.message }),
     };
   }
