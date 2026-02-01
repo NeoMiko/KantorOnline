@@ -1,4 +1,4 @@
-import { AppDispatch, RootState } from "../store/store";
+import { AppDispatch } from "../store/store";
 import { fetchWalletBalances } from "./walletService";
 import { API_ENDPOINTS } from "../constants/api";
 
@@ -18,24 +18,20 @@ export const executeExchange =
   ) =>
   async (dispatch: AppDispatch): Promise<ExchangeResult> => {
     try {
-      const response = await fetch(
-        API_ENDPOINTS.EXCHANGE_EXECUTE ||
-          "/.netlify/functions/exchange-execute",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fromCurrency,
-            toCurrency,
-            amount,
-            rate,
-            userId,
-          }),
-        }
-      );
+      const response = await fetch(API_ENDPOINTS.EXCHANGE_EXECUTE, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fromCurrency,
+          toCurrency,
+          amount,
+          rate,
+          userId,
+        }),
+      });
 
       const data = await response.json();
 
@@ -50,7 +46,6 @@ export const executeExchange =
         message: data.message || "Wymiana zakończona sukcesem!",
       };
     } catch (error: any) {
-      console.error("Błąd exchangeService:", error.message);
       return {
         success: false,
         message: error.message || "Nie udało się połączyć z serwerem.",

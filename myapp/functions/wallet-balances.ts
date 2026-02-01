@@ -10,7 +10,7 @@ import { Handler } from "./types/types";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
 const walletHandler: Handler = async (
@@ -18,11 +18,7 @@ const walletHandler: Handler = async (
   context: HandlerContext
 ): Promise<HandlerResponse> => {
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: CORS_HEADERS,
-      body: "",
-    };
+    return { statusCode: 204, headers: CORS_HEADERS, body: "" };
   }
 
   try {
@@ -32,7 +28,7 @@ const walletHandler: Handler = async (
       return {
         statusCode: 400,
         headers: CORS_HEADERS,
-        body: JSON.stringify({ message: "Brak userId w zapytaniu." }),
+        body: JSON.stringify({ message: "Brak userId." }),
       };
     }
 
@@ -43,14 +39,10 @@ const walletHandler: Handler = async (
 
     return {
       statusCode: 200,
-      headers: {
-        ...CORS_HEADERS,
-        "Content-Type": "application/json",
-      },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
       body: JSON.stringify({ balances: result.rows }),
     };
   } catch (error: any) {
-    console.error("BŁĄD WALLET-BALANCES:", error.message);
     return {
       statusCode: 500,
       headers: CORS_HEADERS,

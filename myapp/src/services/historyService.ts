@@ -17,12 +17,12 @@ export const fetchTransactionHistory = createAsyncThunk(
         },
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        return rejectWithValue(errorData.message || "Błąd historii");
+        return rejectWithValue(data.message || "Błąd historii");
       }
 
-      const data = await response.json();
       return data.history;
     } catch (error: any) {
       return rejectWithValue(error.message || "Błąd sieci");

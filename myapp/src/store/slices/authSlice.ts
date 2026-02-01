@@ -9,7 +9,6 @@ interface AuthState {
   error: string | null;
 }
 
-// Akcja asynchroniczna do wczytywania danych z pamięci telefonu przy starcie
 export const loadAuthData = createAsyncThunk("auth/loadAuthData", async () => {
   try {
     const token = await AsyncStorage.getItem("userToken");
@@ -41,8 +40,6 @@ const authSlice = createSlice({
       state.isAuthenticated = true;
       state.error = null;
       state.isLoading = false;
-
-      // Zapisujemy dane do pamięci telefonu
       AsyncStorage.setItem("userToken", action.payload.token);
       AsyncStorage.setItem("userId", String(action.payload.userId));
     },
@@ -51,7 +48,6 @@ const authSlice = createSlice({
       state.userId = null;
       state.isAuthenticated = false;
       state.isLoading = false;
-
       AsyncStorage.removeItem("userToken");
       AsyncStorage.removeItem("userId");
     },

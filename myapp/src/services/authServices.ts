@@ -19,11 +19,10 @@ export const loginUser =
         throw new Error(data.message || "Błąd logowania.");
       }
 
-      // Zapisujemy token i userId w Redux
       dispatch(
         loginSuccess({
           token: data.token,
-          userId: data.userId,
+          userId: String(data.userId),
         })
       );
 
@@ -54,7 +53,7 @@ export const registerUser =
       dispatch(
         loginSuccess({
           token: data.token,
-          userId: data.userId,
+          userId: String(data.userId),
         })
       );
 

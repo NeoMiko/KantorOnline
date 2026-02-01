@@ -30,7 +30,7 @@ export const handler = async (
     }
 
     const userExists = await query("SELECT id FROM users WHERE username = $1", [
-      username,
+      username.trim(),
     ]);
     if (userExists.rows.length > 0) {
       return {
@@ -43,21 +43,29 @@ export const handler = async (
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    await query("BEGIN");
-    const newUser = await query(
-      "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id",
-      [username, hashedPassword]
-    );
-    const userId = newUser.rows[0].id;
+    let userId: string;
 
-    const currencies = ["PLN", "USD", "EUR", "CHF", "GBP"];
-    for (const code of currencies) {
-      await query(
-        "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
-        [userId, code, code === "PLN" ? 10000 : 0]
+    await query("BEGIN");
+    try {
+      const newUser = await query(
+        "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id",
+        [username.trim(), hashedPassword]
       );
+
+      userId = String(newUser.rows[0].id);
+
+      const currencies = ["PLN", "USD", "EUR", "CHF", "GBP"];
+      for (const code of currencies) {
+        await query(
+          "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
+          [userId, code, code === "PLN" ? 10000 : 0]
+        );
+      }
+      await query("COMMIT");
+    } catch (dbError) {
+      await query("ROLLBACK");
+      throw dbError;
     }
-    await query("COMMIT");
 
     const token = jwt.sign(
       { userId, username },
@@ -71,12 +79,11 @@ export const handler = async (
       body: JSON.stringify({
         message: "Konto utworzone!",
         token,
-        userId: String(userId),
+        userId,
         username,
       }),
     };
   } catch (error: any) {
-    await query("ROLLBACK").catch(() => {});
     return {
       statusCode: 500,
       headers,

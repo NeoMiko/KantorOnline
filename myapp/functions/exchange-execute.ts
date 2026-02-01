@@ -21,14 +21,6 @@ const exchangeHandler: Handler = async (
     return { statusCode: 204, headers: CORS_HEADERS, body: "" };
   }
 
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({ message: "Metoda niedozwolona." }),
-    };
-  }
-
   try {
     const { fromCurrency, toCurrency, amount, rate, userId } = JSON.parse(
       event.body || "{}"
@@ -45,81 +37,63 @@ const exchangeHandler: Handler = async (
       return {
         statusCode: 400,
         headers: CORS_HEADERS,
-        body: JSON.stringify({
-          message: "Nieprawidłowe dane transakcji lub brak userId.",
-        }),
+        body: JSON.stringify({ message: "Nieprawidłowe dane transakcji." }),
       };
     }
 
-    // Wyliczenie kwoty otrzymywanej
-    const amountToReceive =
-      fromCurrency === "PLN" ? amount / rate : amount * rate;
+    const amountToReceive = amount * rate;
 
-    //  Sprawdzenie salda konkretnego użytkownika
-    const checkRes = await query(
-      `SELECT saldo FROM temp_balances WHERE waluta_skrot = $1 AND user_id = $2`,
-      [fromCurrency, userId]
-    );
+    await query("BEGIN");
+    try {
+      const balanceCheck = await query(
+        "SELECT saldo FROM temp_balances WHERE user_id = $1 AND waluta_skrot = $2",
+        [userId, fromCurrency]
+      );
 
-    if (checkRes.rows.length === 0 || Number(checkRes.rows[0].saldo) < amount) {
+      if (
+        balanceCheck.rows.length === 0 ||
+        balanceCheck.rows[0].saldo < amount
+      ) {
+        throw new Error("Niewystarczające środki.");
+      }
+
+      await query(
+        "UPDATE temp_balances SET saldo = saldo - $1 WHERE waluta_skrot = $2 AND user_id = $3",
+        [amount, fromCurrency, userId]
+      );
+
+      await query(
+        "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3) ON CONFLICT (user_id, waluta_skrot) DO UPDATE SET saldo = temp_balances.saldo + $3",
+        [userId, toCurrency, amountToReceive]
+      );
+
+      await query(
+        "INSERT INTO history (user_id, waluta_sprzedawana, ilosc_sprzedana, waluta_kupowana, ilosc_kupiona, kurs_wymiany) VALUES ($1, $2, $3, $4, $5, $6)",
+        [userId, fromCurrency, amount, toCurrency, amountToReceive, rate]
+      );
+
+      await query("COMMIT");
+
       return {
-        statusCode: 400,
-        headers: CORS_HEADERS,
+        statusCode: 200,
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: `Niewystarczające środki w walucie ${fromCurrency} lub brak konta.`,
+          success: true,
+          message: "Wymiana zakończona sukcesem!",
+          details: `Sprzedano: ${amount} ${fromCurrency}, Otrzymano: ${amountToReceive.toFixed(
+            2
+          )} ${toCurrency}`,
         }),
       };
+    } catch (dbError: any) {
+      await query("ROLLBACK");
+      throw dbError;
     }
-
-    //  Odejmowanie środków
-    await query(
-      `UPDATE temp_balances SET saldo = saldo - $1 WHERE waluta_skrot = $2 AND user_id = $3`,
-      [amount, fromCurrency, userId]
-    );
-
-    //  Dodawanie środków
-    await query(
-      `INSERT INTO temp_balances (user_id, waluta_skrot, saldo) 
-       VALUES ($1, $2, $3) 
-       ON CONFLICT (user_id, waluta_skrot) 
-       DO UPDATE SET saldo = temp_balances.saldo + $3`,
-      [userId, toCurrency, amountToReceive]
-    );
-
-    // Zapis do historii
-    await query(
-      `INSERT INTO transaction_history (user_id, typ, waluta_z, waluta_do, kwota_z, kwota_do, kurs, data) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
-      [
-        userId,
-        "WYMIANA",
-        fromCurrency,
-        toCurrency,
-        amount,
-        amountToReceive,
-        rate,
-      ]
-    );
-
-    return {
-      statusCode: 200,
-      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        success: true,
-        message: "Wymiana zakończona sukcesem!",
-        details: `Sprzedano: ${amount.toFixed(
-          2
-        )} ${fromCurrency}, Otrzymano: ${amountToReceive.toFixed(
-          2
-        )} ${toCurrency}`,
-      }),
-    };
   } catch (error: any) {
-    console.error("Błąd podczas wykonywania wymiany:", error.message);
     return {
       statusCode: 500,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ message: "Błąd serwera: " + error.message }),
+      body: JSON.stringify({ message: error.message }),
     };
   }
 };
