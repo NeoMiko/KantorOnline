@@ -33,7 +33,18 @@ const historyHandler: Handler = async (
     }
 
     const result = await query(
-      "SELECT id, waluta_sprzedawana, ilosc_sprzedana, waluta_kupowana, ilosc_kupiona, kurs_wymiany, data_transakcji FROM history WHERE user_id = $1 ORDER BY data_transakcji DESC LIMIT 50",
+      `SELECT 
+        id, 
+        waluta_sprzedawana AS waluta_z, 
+        ilosc_sprzedana AS kwota_z, 
+        waluta_kupowana AS waluta_do, 
+        ilosc_kupiona AS kwota_do, 
+        kurs_wymiany AS kurs, 
+        data_transakcji AS data 
+       FROM history 
+       WHERE user_id = $1 
+       ORDER BY data_transakcji DESC 
+       LIMIT 50`,
       [userId]
     );
 
