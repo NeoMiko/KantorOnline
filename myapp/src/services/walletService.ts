@@ -1,5 +1,6 @@
 import { AppDispatch, RootState } from "../store/store";
 import { setBalances, Balance } from "../store/slices/walletSlice";
+import { API_ENDPOINTS } from "../constants/api";
 
 export const fetchWalletBalances =
   () => async (dispatch: AppDispatch, getState: () => RootState) => {
@@ -8,17 +9,14 @@ export const fetchWalletBalances =
     try {
       const userId = getState().auth.userId;
       if (!userId) {
-        throw new Error("Brak ID użytkownika.");
+        throw new Error("Brak ID użytkownika. Zaloguj się ponownie.");
       }
 
-      const response = await fetch(
-        "https://kantoronline.netlify.app/.netlify/functions/wallet-balances",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId }),
-        }
-      );
+      const response = await fetch(API_ENDPOINTS.WALLET_BALANCES, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
 
       if (!response.ok) {
         const errorData = await response.json();

@@ -4,23 +4,17 @@ import { query } from "./utils/db";
 export const handler = async (
   event: HandlerEvent
 ): Promise<HandlerResponse> => {
-  if (event.httpMethod !== "POST") {
+  const userId = event.queryStringParameters?.userId;
+
+  if (!userId) {
     return {
-      statusCode: 405,
-      body: JSON.stringify({ message: "Użyj POST z userId" }),
+      statusCode: 400,
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ message: "Brak userId" }),
     };
   }
 
   try {
-    const { userId } = JSON.parse(event.body || "{}");
-
-    if (!userId) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: "Brak userId" }),
-      };
-    }
-
     const result = await query(
       "SELECT waluta_skrot, saldo FROM temp_balances WHERE user_id = $1 ORDER BY waluta_skrot ASC",
       [userId]
@@ -28,12 +22,16 @@ export const handler = async (
 
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
       body: JSON.stringify({ balances: result.rows }),
     };
   } catch (error: any) {
     return {
       statusCode: 500,
+      headers: { "Access-Control-Allow-Origin": "*" },
       body: JSON.stringify({ message: error.message }),
     };
   }

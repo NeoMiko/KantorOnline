@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-nativ
 import { useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RootState } from '../../src/store/store';
+import { API_ENDPOINTS } from '../../src/constants/api';
 
 interface Transaction {
   id: number;
@@ -19,12 +20,11 @@ export default function HistoryScreen() {
   const [history, setHistory] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const userId = useSelector((state: RootState) => state.auth.userId);
-  
-  const API_URL = "https://kantoronline.netlify.app/.netlify/functions";
 
   const fetchHistory = async () => {
     try {
-      const response = await fetch(`${API_URL}/history-get`, {
+      setLoading(true);
+      const response = await fetch(API_ENDPOINTS.HISTORY_GET, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId })
@@ -51,6 +51,7 @@ export default function HistoryScreen() {
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={styles.amount}>-{Number(item.kwota_z).toFixed(2)} {item.waluta_z}</Text>
         <Text style={styles.received}>+{Number(item.kwota_do).toFixed(2)} {item.waluta_do}</Text>
+        <Text style={styles.rateText}>Kurs: {Number(item.kurs).toFixed(4)}</Text>
       </View>
     </View>
   );
@@ -66,6 +67,7 @@ export default function HistoryScreen() {
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
           ListEmptyComponent={<Text style={styles.empty}>Brak transakcji w historii.</Text>}
+          contentContainerStyle={{ paddingBottom: 20 }}
         />
       )}
     </SafeAreaView>
@@ -78,11 +80,13 @@ const styles = StyleSheet.create({
   item: { 
     backgroundColor: '#fff', padding: 15, borderRadius: 12, 
     flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12,
-    elevation: 3
+    elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1, shadowRadius: 2
   },
-  type: { fontWeight: 'bold', fontSize: 16 },
-  date: { fontSize: 11, color: '#999' },
-  amount: { color: '#dc3545', fontWeight: 'bold' },
-  received: { color: '#28a745', fontWeight: 'bold' },
+  type: { fontWeight: 'bold', fontSize: 14, color: '#333' },
+  date: { fontSize: 11, color: '#888', marginTop: 4 },
+  amount: { color: '#dc3545', fontWeight: '600', fontSize: 14 },
+  received: { color: '#28a745', fontWeight: '600', fontSize: 14 },
+  rateText: { fontSize: 10, color: '#999', marginTop: 2 },
   empty: { textAlign: 'center', marginTop: 50, color: '#999' }
 });

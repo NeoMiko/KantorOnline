@@ -4,46 +4,41 @@ import { query } from "./utils/db";
 export const handler = async (
   event: HandlerEvent
 ): Promise<HandlerResponse> => {
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ message: "Method not allowed" }),
-    };
-  }
+  if (event.httpMethod !== "POST")
+    return { statusCode: 405, body: "Method Not Allowed" };
 
   try {
-    const { username, password } = JSON.parse(event.body || "{}");
+    const { email, password } = JSON.parse(event.body || "{}");
 
-    if (!username || !password) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: "Missing credentials" }),
-      };
-    }
-
-    const userRes = await query(
-      "INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id",
-      [username, password]
+    const userResult = await query(
+      "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id",
+      [email, password]
     );
+    const userId = userResult.rows[0].id;
 
-    const userId = userRes.rows[0].id;
-
-    const currencies = ["PLN", "USD", "EUR", "CHF", "GBP"];
+    const currencies = ["PLN", "USD", "EUR", "GBP", "CHF"];
     for (const cur of currencies) {
       await query(
         "INSERT INTO temp_balances (user_id, waluta_skrot, saldo) VALUES ($1, $2, $3)",
-        [userId, cur, cur === "PLN" ? 10000 : 0]
+        [userId, cur, cur === "PLN" ? 1000 : 0]
       );
     }
 
     return {
       statusCode: 201,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "User created", userId }),
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: JSON.stringify({
+        userId: userId.toString(),
+        message: "Konto utworzone!",
+      }),
     };
   } catch (error: any) {
     return {
       statusCode: 500,
+      headers: { "Access-Control-Allow-Origin": "*" },
       body: JSON.stringify({ message: error.message }),
     };
   }

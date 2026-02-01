@@ -4,42 +4,41 @@ import { query } from "./utils/db";
 export const handler = async (
   event: HandlerEvent
 ): Promise<HandlerResponse> => {
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ message: "Method not allowed" }),
-    };
-  }
+  if (event.httpMethod !== "POST")
+    return { statusCode: 405, body: "Method Not Allowed" };
 
   try {
-    const { username, password } = JSON.parse(event.body || "{}");
+    const { email, password } = JSON.parse(event.body || "{}");
 
     const result = await query(
-      "SELECT id, username FROM users WHERE username = $1 AND password = $2",
-      [username, password]
+      "SELECT id, password FROM users WHERE email = $1",
+      [email]
     );
+    const user = result.rows[0];
 
-    if (result.rows.length === 0) {
+    if (!user || user.password !== password) {
       return {
         statusCode: 401,
-        body: JSON.stringify({ message: "Invalid credentials" }),
+        headers: { "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify({ message: "Błędny e-mail lub hasło." }),
       };
     }
 
-    const user = result.rows[0];
-
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
       body: JSON.stringify({
-        token: `fake-jwt-for-${user.id}`,
-        userId: user.id,
-        username: user.username,
+        userId: user.id.toString(),
+        message: "Zalogowano pomyślnie",
       }),
     };
   } catch (error: any) {
     return {
       statusCode: 500,
+      headers: { "Access-Control-Allow-Origin": "*" },
       body: JSON.stringify({ message: error.message }),
     };
   }
