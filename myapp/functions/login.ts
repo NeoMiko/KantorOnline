@@ -17,17 +17,17 @@ export const handler = async (
   try {
     const { username, password } = JSON.parse(event.body || "{}");
 
+    // Proste zapytanie sprawdzające dane
     const result = await query(
-      "SELECT id, password FROM users WHERE username = $1",
-      [username]
+      "SELECT id FROM users WHERE username = $1 AND password = $2",
+      [username, password]
     );
-    const user = result.rows[0];
 
-    if (!user || user.password !== password) {
+    if (result.rows.length === 0) {
       return {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ message: "Błędny login lub hasło." }),
+        body: JSON.stringify({ message: "Nieprawidłowe dane logowania." }),
       };
     }
 
@@ -35,7 +35,7 @@ export const handler = async (
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        userId: user.id.toString(),
+        userId: result.rows[0].id.toString(),
         message: "Zalogowano!",
       }),
     };
@@ -43,7 +43,7 @@ export const handler = async (
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ message: error.message }),
+      body: JSON.stringify({ message: "Błąd bazy danych: " + error.message }),
     };
   }
 };

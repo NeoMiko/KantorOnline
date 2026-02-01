@@ -6,7 +6,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { loginSuccess } from '../src/store/slices/authSlice';
 
 export default function AuthScreen() {
-  const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -14,47 +13,31 @@ export default function AuthScreen() {
   const dispatch = useDispatch();
   const router = useRouter();
 
-  const API_URL = "https://kantoronline.netlify.app/.netlify/functions";
-
   const handleAuth = async () => {
     if (!username || !password) {
-      Alert.alert("Błąd", "Wypełnij wszystkie pola");
+      Alert.alert("Błąd", "Wpisz dane (test / test123)");
       return;
     }
 
     setLoading(true);
-    const endpoint = isLogin ? '/login' : '/register';
-
     try {
-      const response = await fetch(`${API_URL}${endpoint}`, {
+      const response = await fetch("https://kantoronline.netlify.app/.netlify/functions/login", {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
 
-      // Sprawdzamy czy odpowiedź to JSON
-      const contentType = response.headers.get("content-type");
-      let data;
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json();
-      } else {
-        throw new Error("Serwer nie zwrócił formatu JSON. Sprawdź logi Netlify.");
-      }
+      const data = await response.json();
 
       if (response.ok) {
-        // Zapisujemy userId w Redux (bez tokena)
+        // Zapisujemy ID i wchodzimy do aplikacji
         dispatch(loginSuccess({ userId: data.userId }));
-        
-        Alert.alert("Sukces", isLogin ? "Zalogowano pomyślnie!" : "Konto utworzone!");
         router.replace('/(tabs)/exchange');
       } else {
-        Alert.alert("Błąd", data.message || "Błąd autoryzacji");
+        Alert.alert("Błąd", data.message || "Błąd serwera");
       }
-    } catch (e: any) {
-      console.error("Auth error:", e);
-      Alert.alert("Błąd", e.message || "Problem z połączeniem.");
+    } catch (e) {
+      Alert.alert("Błąd", "Problem z połączeniem. Sprawdź internet.");
     } finally {
       setLoading(false);
     }
@@ -63,41 +46,25 @@ export default function AuthScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.title}>{isLogin ? 'Logowanie' : 'Rejestracja'}</Text>
-        
-        <TextInput
-          style={styles.input}
-          placeholder="Nazwa użytkownika"
-          value={username}
-          onChangeText={setUsername}
+        <Text style={styles.title}>Logowanie</Text>
+        <TextInput 
+          style={styles.input} 
+          placeholder="Użytkownik" 
+          value={username} 
+          onChangeText={setUsername} 
           autoCapitalize="none"
         />
-        
-        <TextInput
-          style={styles.input}
-          placeholder="Hasło"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
+        <TextInput 
+          style={styles.input} 
+          placeholder="Hasło" 
+          value={password} 
+          onChangeText={setPassword} 
+          secureTextEntry 
         />
-
-        <TouchableOpacity 
-          style={[styles.button, loading && { opacity: 0.7 }]} 
-          onPress={handleAuth} 
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>{isLogin ? 'ZALOGUJ' : 'ZAREJESTRUJ'}</Text>
-          )}
+        <TouchableOpacity style={styles.button} onPress={handleAuth} disabled={loading}>
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>ZALOGUJ</Text>}
         </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => setIsLogin(!isLogin)} style={styles.switch}>
-          <Text style={styles.switchText}>
-            {isLogin ? 'Nie masz konta? Zarejestruj się' : 'Masz konto? Zaloguj się'}
-          </Text>
-        </TouchableOpacity>
+        <Text style={styles.hint}>Użyj danych dodanych w SQL</Text>
       </View>
     </SafeAreaView>
   );
@@ -105,11 +72,10 @@ export default function AuthScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f4f6f8', justifyContent: 'center', padding: 20 },
-  card: { backgroundColor: '#fff', padding: 20, borderRadius: 15, elevation: 5, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', color: '#007bff' },
-  input: { borderBottomWidth: 1, borderBottomColor: '#ddd', padding: 10, marginBottom: 15, fontSize: 16 },
-  button: { backgroundColor: '#007bff', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  switch: { marginTop: 20, alignItems: 'center' },
-  switchText: { color: '#007bff', fontSize: 14 },
+  card: { backgroundColor: '#fff', padding: 25, borderRadius: 15, elevation: 5 },
+  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  input: { borderBottomWidth: 1, borderBottomColor: '#ddd', padding: 12, marginBottom: 20 },
+  button: { backgroundColor: '#007bff', padding: 15, borderRadius: 10, alignItems: 'center' },
+  buttonText: { color: '#fff', fontWeight: 'bold' },
+  hint: { marginTop: 15, textAlign: 'center', color: '#888', fontSize: 12 }
 });
