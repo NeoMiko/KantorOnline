@@ -10,163 +10,108 @@ import { executeExchange } from '../../src/services/exchangeService';
 export default function ExchangeScreen() {
   const dispatch = useDispatch<AppDispatch>();
   
-  // Dane z Redux - dodano userId
-  const { rates, isLoading, lastUpdated } = useSelector((state: RootState) => state.rates);
-  const { token, userId, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { rates, isLoading } = useSelector((state: RootState) => state.rates);
+  const { userId, isAuthenticated } = useSelector((state: RootState) => state.auth);
 
-  // Stan formularza
   const [amount, setAmount] = useState('');
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [transactionType, setTransactionType] = useState<'KUPNO' | 'SPRZEDAZ'>('KUPNO');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Aktualizacja kursow z NBP co 10s
   useEffect(() => {
     if (isAuthenticated) {
       dispatch(fetchCurrentRates());
       const interval = setInterval(() => dispatch(fetchCurrentRates()), 10000);
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated, dispatch]);
+  }, [isAuthenticated]);
 
-  const currentRateObj = rates.find(r => r.waluta_skrot === selectedCurrency);
-  const activeRate = transactionType === 'KUPNO' 
-    ? currentRateObj?.kurs_sprzedazy 
-    : currentRateObj?.kurs_kupna;
-
-  // Obliczenie wyniku transakcji
-  const result = (amount && activeRate) 
-    ? (transactionType === 'KUPNO' ? parseFloat(amount) / activeRate : parseFloat(amount) * activeRate)
-    : 0;
-
-  const handleTransaction = async () => {
+  const handleExchange = async () => {
     const numAmount = parseFloat(amount);
-    
-    // Walidacja
-    if (!numAmount || numAmount <= 0) {
-      Alert.alert("Błąd", "Wpisz poprawną kwotę.");
+    if (!amount || isNaN(numAmount) || numAmount <= 0) {
+      Alert.alert('Błąd', 'Wpisz poprawną kwotę');
       return;
     }
 
-    if (!activeRate || !token || !userId) {
-      Alert.alert("Błąd", "Brak wymaganych danych (kurs, token lub ID użytkownika).");
+    if (!userId) {
+      Alert.alert('Błąd', 'Użytkownik nie jest zalogowany');
       return;
     }
+
+    const rateData = rates.find(r => r.waluta_skrot === selectedCurrency);
+    if (!rateData) return;
+
+    const currentRate = transactionType === 'KUPNO' ? rateData.kurs_sprzedazy : rateData.kurs_kupna;
 
     setIsProcessing(true);
+    const result = await dispatch(executeExchange(
+      transactionType === 'KUPNO' ? 'PLN' : selectedCurrency,
+      transactionType === 'KUPNO' ? selectedCurrency : 'PLN',
+      numAmount,
+      currentRate,
+      userId
+    ));
+    setIsProcessing(false);
 
-    // Określenie kierunku walut
-    const fromCur = transactionType === 'KUPNO' ? 'PLN' : selectedCurrency;
-    const toCur = transactionType === 'KUPNO' ? selectedCurrency : 'PLN';
-
-    try {
-      // Wywołanie z 6 argumentami zgodnie z Twoim serwisem
-      const response = await dispatch(executeExchange(
-        fromCur, 
-        toCur, 
-        numAmount, 
-        activeRate, 
-        token
-       
-      ));
-      
-      if (response.success) {
-        Alert.alert("Sukces", response.message);
-        setAmount('');
-      } else {
-        Alert.alert("Błąd", response.message);
-      }
-    } catch (error: any) {
-      Alert.alert("Błąd krytyczny", error.message || "Nieoczekiwany błąd transakcji.");
-    } finally {
-      setIsProcessing(false);
+    if (result.success) {
+      Alert.alert('Sukces', result.message);
+      setAmount('');
+    } else {
+      Alert.alert('Błąd', result.message);
     }
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <Text style={styles.title}>Kantor Online</Text>
         
-        <View style={styles.headerSection}>
-          <Text style={styles.headerTitle}>Aktualne Kursy Wymiany (PLN)</Text>
-          <Text style={styles.lastUpdate}>
-            Ostatnia aktualizacja: {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : '--:--'}
-          </Text>
-        </View>
-
-       
-        <View style={styles.tableCard}>
-          <View style={[styles.row, styles.headerRow]}>
-            <Text style={[styles.cell, styles.headerCell, { textAlign: 'left' }]}>Waluta</Text>
-            <Text style={[styles.cell, styles.headerCell]}>Kupno</Text>
-            <Text style={[styles.cell, styles.headerCell]}>Sprzedaż</Text>
-          </View>
-          {rates.map((rate) => (
-            <TouchableOpacity 
-              key={rate.waluta_skrot} 
-              style={[styles.row, selectedCurrency === rate.waluta_skrot && styles.selectedRow]}
-              onPress={() => setSelectedCurrency(rate.waluta_skrot)}
-            >
-              <Text style={[styles.cell, styles.bold, { textAlign: 'left' }]}>{rate.waluta_skrot}</Text>
-              <Text style={styles.cell}>{rate.kurs_kupna.toFixed(4)}</Text>
-              <Text style={styles.cell}>{rate.kurs_sprzedazy.toFixed(4)}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-     
         <View style={styles.formCard}>
-          <Text style={styles.formTitle}>Nowe Zlecenie: {selectedCurrency}</Text>
-          
           <View style={styles.typeSelector}>
             <TouchableOpacity 
-              style={[styles.typeBtn, transactionType === 'KUPNO' && styles.buyActive]}
+              style={[styles.typeBtn, transactionType === 'KUPNO' && styles.buyActive]} 
               onPress={() => setTransactionType('KUPNO')}
             >
-              <Text style={[styles.typeBtnText, transactionType === 'KUPNO' && styles.textWhite]}>Chcę Kupić</Text>
+              <Text style={[styles.typeBtnText, transactionType === 'KUPNO' && styles.textWhite]}>CHCE KUPIĆ</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.typeBtn, transactionType === 'SPRZEDAZ' && styles.sellActive]}
+              style={[styles.typeBtn, transactionType === 'SPRZEDAZ' && styles.sellActive]} 
               onPress={() => setTransactionType('SPRZEDAZ')}
             >
-              <Text style={[styles.typeBtnText, transactionType === 'SPRZEDAZ' && styles.textWhite]}>Chcę Sprzedać</Text>
+              <Text style={[styles.typeBtnText, transactionType === 'SPRZEDAZ' && styles.textWhite]}>CHCE SPRZEDAĆ</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.inputWrapper}>
+            <Text style={styles.label}>Wybierz walutę:</Text>
+            <View style={styles.currencyGrid}>
+              {rates.map(r => (
+                <TouchableOpacity 
+                  key={r.waluta_skrot}
+                  style={[styles.currencyItem, selectedCurrency === r.waluta_skrot && styles.currencySelected]}
+                  onPress={() => setSelectedCurrency(r.waluta_skrot)}
+                >
+                  <Text style={selectedCurrency === r.waluta_skrot ? styles.textWhite : null}>{r.waluta_skrot}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.inputWrapper}>
             <Text style={styles.label}>Kwota ({transactionType === 'KUPNO' ? 'PLN' : selectedCurrency}):</Text>
-            <TextInput
+            <TextInput 
               style={styles.input}
-              placeholder="Wpisz kwotę..."
-              keyboardType="numeric"
               value={amount}
               onChangeText={setAmount}
+              keyboardType="numeric"
+              placeholder="0.00"
             />
           </View>
 
-          <View style={styles.resultBox}>
-            <Text style={styles.resultLabel}>
-              {transactionType === 'KUPNO' ? 'Otrzymasz około:' : 'Otrzymasz (PLN):'}
-            </Text>
-            <Text style={styles.resultValue}>
-              {result.toFixed(2)} {transactionType === 'KUPNO' ? selectedCurrency : 'PLN'}
-            </Text>
-            <Text style={styles.rateInfo}>Po kursie: {activeRate?.toFixed(4)}</Text>
-          </View>
-
-          <TouchableOpacity 
-            style={[styles.submitBtn, transactionType === 'KUPNO' ? styles.buyActive : styles.sellActive]} 
-            onPress={handleTransaction}
-            disabled={isProcessing || !activeRate}
-          >
-            {isProcessing ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.submitBtnText}>POTWIERDŹ TRANSAKCJĘ</Text>
-            )}
+          <TouchableOpacity style={styles.mainBtn} onPress={handleExchange} disabled={isProcessing}>
+            {isProcessing ? <ActivityIndicator color="#fff" /> : <Text style={styles.mainBtnText}>WYKONAJ TRANSAKCJĘ</Text>}
           </TouchableOpacity>
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -174,32 +119,21 @@ export default function ExchangeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f4f6f8' },
-  scrollContent: { padding: 16 },
-  headerSection: { marginBottom: 16 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#333' },
-  lastUpdate: { fontSize: 12, color: '#666' },
-  tableCard: { backgroundColor: '#fff', borderRadius: 8, elevation: 2, marginBottom: 20, overflow: 'hidden' },
-  row: { flexDirection: 'row', padding: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  selectedRow: { backgroundColor: '#eef6ff' },
-  headerRow: { backgroundColor: '#007bff' },
-  headerCell: { flex: 1, color: '#fff', fontWeight: 'bold', textAlign: 'center' },
-  cell: { flex: 1, textAlign: 'center', color: '#444' },
-  bold: { fontWeight: 'bold' },
-  formCard: { backgroundColor: '#fff', borderRadius: 12, padding: 20, elevation: 4 },
-  formTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
-  typeSelector: { flexDirection: 'row', marginBottom: 20, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#ddd' },
-  typeBtn: { flex: 1, padding: 12, alignItems: 'center', backgroundColor: '#f8f9fa' },
-  typeBtnText: { fontWeight: '600', color: '#666' },
+  scroll: { padding: 20 },
+  title: { fontSize: 26, fontWeight: 'bold', marginBottom: 20, color: '#333' },
+  formCard: { backgroundColor: '#fff', borderRadius: 15, padding: 20, elevation: 4 },
+  typeSelector: { flexDirection: 'row', marginBottom: 20, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#eee' },
+  typeBtn: { flex: 1, padding: 15, alignItems: 'center', backgroundColor: '#f8f9fa' },
+  typeBtnText: { fontWeight: 'bold', color: '#666' },
   buyActive: { backgroundColor: '#28a745' },
   sellActive: { backgroundColor: '#dc3545' },
   textWhite: { color: '#fff' },
-  inputWrapper: { marginBottom: 15 },
-  label: { fontSize: 13, color: '#666', marginBottom: 5 },
-  input: { borderBottomWidth: 2, borderBottomColor: '#007bff', fontSize: 18, paddingVertical: 8, fontWeight: 'bold' },
-  resultBox: { backgroundColor: '#f8f9fa', padding: 15, borderRadius: 8, marginBottom: 20, alignItems: 'center' },
-  resultLabel: { fontSize: 12, color: '#666' },
-  resultValue: { fontSize: 22, fontWeight: 'bold', color: '#333', marginVertical: 4 },
-  rateInfo: { fontSize: 11, color: '#999' },
-  submitBtn: { padding: 16, borderRadius: 8, alignItems: 'center' },
-  submitBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
+  label: { fontSize: 14, color: '#888', marginBottom: 10 },
+  currencyGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  currencyItem: { padding: 10, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, width: '22%', alignItems: 'center' },
+  currencySelected: { backgroundColor: '#007bff', borderColor: '#007bff' },
+  inputWrapper: { marginBottom: 20 },
+  input: { borderBottomWidth: 2, borderBottomColor: '#007bff', fontSize: 22, paddingVertical: 5, fontWeight: 'bold' },
+  mainBtn: { backgroundColor: '#007bff', padding: 18, borderRadius: 10, alignItems: 'center' },
+  mainBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
 });

@@ -8,14 +8,14 @@
     "deploy": "npm run build"
   },
   "dependencies": {
-    "@netlify/functions": "^2.6.0",
-    "pg": "^8.11.3",
-    "dotenv": "^16.4.5"
+    "@netlify/functions": "^2.8.2",
+    "dotenv": "^16.4.5",
+    "pg": "^8.11.3"
   },
   "devDependencies": {
-    "@types/pg": "^8.11.2",
-    "@types/node": "^20.12.7",
     "@types/dotenv": "^8.2.0",
+    "@types/node": "^20.12.7",
+    "@types/pg": "^8.11.2",
     "typescript": "^5.4.5"
   }
 }

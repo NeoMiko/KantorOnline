@@ -1,9 +1,7 @@
 import { HandlerResponse, HandlerEvent } from "@netlify/functions";
-import { authenticatedHandler } from "./utils/auth-middleware";
 import { query } from "./utils/db";
-import { Handler } from "./types/types";
 
-const exchangeHandler: Handler = async (
+export const handler = async (
   event: HandlerEvent
 ): Promise<HandlerResponse> => {
   if (event.httpMethod !== "POST") {
@@ -14,14 +12,23 @@ const exchangeHandler: Handler = async (
   }
 
   try {
-    const { fromCurrency, toCurrency, amount, rate } = JSON.parse(
+    const { fromCurrency, toCurrency, amount, rate, userId } = JSON.parse(
       event.body || "{}"
     );
 
-    if (!fromCurrency || !toCurrency || !amount || amount <= 0 || !rate) {
+    if (
+      !fromCurrency ||
+      !toCurrency ||
+      !amount ||
+      amount <= 0 ||
+      !rate ||
+      !userId
+    ) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ message: "Nieprawidłowe dane transakcji." }),
+        body: JSON.stringify({
+          message: "Nieprawidłowe dane transakcji lub brak ID użytkownika.",
+        }),
       };
     }
 
@@ -29,11 +36,11 @@ const exchangeHandler: Handler = async (
       fromCurrency === "PLN" ? amount / rate : amount * rate;
 
     const checkRes = await query(
-      `SELECT saldo FROM temp_balances WHERE waluta_skrot = $1`,
-      [fromCurrency]
+      `SELECT saldo FROM temp_balances WHERE waluta_skrot = $1 AND user_id = $2`,
+      [fromCurrency, userId]
     );
 
-    if (checkRes.rows.length === 0 || checkRes.rows[0].saldo < amount) {
+    if (checkRes.rows.length === 0 || Number(checkRes.rows[0].saldo) < amount) {
       return {
         statusCode: 400,
         body: JSON.stringify({
@@ -43,19 +50,27 @@ const exchangeHandler: Handler = async (
     }
 
     await query(
-      `UPDATE temp_balances SET saldo = saldo - $1 WHERE waluta_skrot = $2`,
-      [amount, fromCurrency]
+      `UPDATE temp_balances SET saldo = saldo - $1 WHERE waluta_skrot = $2 AND user_id = $3`,
+      [amount, fromCurrency, userId]
     );
 
     await query(
-      `UPDATE temp_balances SET saldo = saldo + $1 WHERE waluta_skrot = $2`,
-      [amountToReceive, toCurrency]
+      `UPDATE temp_balances SET saldo = saldo + $1 WHERE waluta_skrot = $2 AND user_id = $3`,
+      [amountToReceive, toCurrency, userId]
     );
 
     await query(
-      `INSERT INTO transaction_history (typ, waluta_z, waluta_do, kwota_z, kwota_do, kurs) 
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-      ["WYMIANA", fromCurrency, toCurrency, amount, amountToReceive, rate]
+      `INSERT INTO transaction_history (user_id, typ, waluta_z, waluta_do, kwota_z, kwota_do, kurs) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        userId,
+        "WYMIANA",
+        fromCurrency,
+        toCurrency,
+        amount,
+        amountToReceive,
+        rate,
+      ]
     );
 
     return {
@@ -70,13 +85,10 @@ const exchangeHandler: Handler = async (
         )} ${toCurrency}`,
       }),
     };
-  } catch (error) {
-    console.error("Błąd podczas wykonywania wymiany:", error);
+  } catch (error: any) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: "Błąd serwera podczas wymiany walut." }),
+      body: JSON.stringify({ message: error.message }),
     };
   }
 };
-
-export const handler = authenticatedHandler(exchangeHandler);

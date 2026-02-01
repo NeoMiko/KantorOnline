@@ -1,43 +1,32 @@
-import { AppDispatch, RootState } from "../store/store";
+import { AppDispatch } from "../store/store";
 import { fetchWalletBalances } from "./walletService";
-import { API_ENDPOINTS } from "../constants/api";
 
 interface ExchangeResult {
   success: boolean;
   message: string;
 }
 
-/**
- * * @param fromCurrency - Kod waluty sprzedawanej
- * @param toCurrency - Kod waluty kupowanej
- * @param amount - Kwota waluty sprzedawanej
- * @param rate - Kurs wymiany zastosowany w transakcji
- * @param token - Token autoryzacyjny użytkownika
- */
 export const executeExchange =
   (
     fromCurrency: string,
     toCurrency: string,
     amount: number,
     rate: number,
-    token: string
+    userId: string
   ) =>
   async (dispatch: AppDispatch): Promise<ExchangeResult> => {
     try {
       const response = await fetch(
-        API_ENDPOINTS.EXCHANGE_EXECUTE ||
-          "/.netlify/functions/exchange-execute",
+        "https://kantoronline.netlify.app/.netlify/functions/exchange-execute",
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             fromCurrency,
             toCurrency,
             amount,
             rate,
+            userId,
           }),
         }
       );
@@ -55,10 +44,9 @@ export const executeExchange =
         message: data.message || "Wymiana zakończona sukcesem!",
       };
     } catch (error: any) {
-      console.error("Błąd exchangeService:", error.message);
       return {
         success: false,
-        message: error.message || "Nie udało się połączyć z serwerem.",
+        message: error.message,
       };
     }
   };

@@ -9,9 +9,9 @@ interface AuthState {
 }
 
 const initialState: AuthState = {
-  token: "TEMP_JWT_TOKEN",
-  userId: "1",
-  isAuthenticated: true, // dla testu
+  token: null,
+  userId: null,
+  isAuthenticated: false,
   isLoading: false,
   error: null,
 };
@@ -27,14 +27,24 @@ const authSlice = createSlice({
       state.token = action.payload.token;
       state.userId = action.payload.userId;
       state.isAuthenticated = true;
+      state.error = null;
     },
     logout: (state) => {
       state.token = null;
       state.userId = null;
       state.isAuthenticated = false;
+      state.error = null;
+    },
+    setAuthError: (state, action: PayloadAction<string>) => {
+      state.error = action.payload;
+      state.isLoading = false;
+    },
+    setAuthLoading: (state, action: PayloadAction<boolean>) => {
+      state.isLoading = action.payload;
     },
   },
 });
 
-export const { loginSuccess, logout } = authSlice.actions;
+export const { loginSuccess, logout, setAuthError, setAuthLoading } =
+  authSlice.actions;
 export default authSlice.reducer;

@@ -10,6 +10,8 @@ const deployedBaseUrl = "https://kantoronline.netlify.app/.netlify/functions";
 export const API_BASE_URL = isLocal ? localBaseUrl : deployedBaseUrl;
 
 export const API_ENDPOINTS = {
+  LOGIN: `${API_BASE_URL}/login`,
+  REGISTER: `${API_BASE_URL}/register`,
   RATES_CURRENT: `${API_BASE_URL}/rates-current`,
   EXCHANGE_EXECUTE: `${API_BASE_URL}/exchange-execute`,
   WALLET_BALANCES: `${API_BASE_URL}/wallet-balances`,

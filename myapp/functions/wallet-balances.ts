@@ -1,12 +1,29 @@
-import { HandlerResponse } from "@netlify/functions";
-import { authenticatedHandler } from "./utils/auth-middleware";
+import { HandlerResponse, HandlerEvent } from "@netlify/functions";
 import { query } from "./utils/db";
-import { Handler } from "./types/types";
 
-const walletHandler: Handler = async (): Promise<HandlerResponse> => {
+export const handler = async (
+  event: HandlerEvent
+): Promise<HandlerResponse> => {
+  if (event.httpMethod !== "POST") {
+    return {
+      statusCode: 405,
+      body: JSON.stringify({ message: "Użyj POST z userId" }),
+    };
+  }
+
   try {
+    const { userId } = JSON.parse(event.body || "{}");
+
+    if (!userId) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ message: "Brak userId" }),
+      };
+    }
+
     const result = await query(
-      "SELECT waluta_skrot, saldo FROM temp_balances ORDER BY waluta_skrot ASC"
+      "SELECT waluta_skrot, saldo FROM temp_balances WHERE user_id = $1 ORDER BY waluta_skrot ASC",
+      [userId]
     );
 
     return {
@@ -15,12 +32,9 @@ const walletHandler: Handler = async (): Promise<HandlerResponse> => {
       body: JSON.stringify({ balances: result.rows }),
     };
   } catch (error: any) {
-    console.error("BŁĄD WALLET-BALANCES:", error.message);
     return {
       statusCode: 500,
       body: JSON.stringify({ message: error.message }),
     };
   }
 };
-
-export const handler = authenticatedHandler(walletHandler);
