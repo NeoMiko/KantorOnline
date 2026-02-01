@@ -1,0 +1,95 @@
+import { HandlerResponse, HandlerEvent } from "@netlify/functions";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { query } from "./utils/db";
+
+export const handler = async (
+  event: HandlerEvent
+): Promise<HandlerResponse> => {
+  const headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-Requested-With",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Content-Type": "application/json",
+  };
+
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 204,
+      headers,
+      body: "",
+    };
+  }
+
+  try {
+    if (event.httpMethod !== "POST") {
+      return {
+        statusCode: 405,
+        headers,
+        body: JSON.stringify({ message: "Metoda niedozwolona. Użyj POST." }),
+      };
+    }
+
+    const { username, password } = JSON.parse(event.body || "{}");
+
+    if (!username || !password) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ message: "Brak loginu lub hasła." }),
+      };
+    }
+
+    const res = await query("SELECT * FROM users WHERE username = $1", [
+      username,
+    ]);
+
+    if (res.rows.length === 0) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ message: "Użytkownik nie istnieje." }),
+      };
+    }
+
+    const user = res.rows[0];
+
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+
+    if (!isMatch) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ message: "Błędne hasło." }),
+      };
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, username: user.username },
+      process.env.JWT_SECRET || "twoj_staly_klucz_123",
+      { expiresIn: "1d" }
+    );
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        token,
+        userId: String(user.id),
+        username: user.username,
+      }),
+    };
+  } catch (error: any) {
+    console.error("CRITICAL AUTH ERROR:", error.message);
+
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        message: "Błąd serwera podczas logowania.",
+        error: error.message,
+      }),
+    };
+  }
+};

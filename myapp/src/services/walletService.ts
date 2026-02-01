@@ -1,49 +1,46 @@
-import { AppDispatch, RootState } from "../store/store";
-import { setBalances, Balance } from "../store/slices/walletSlice";
-import { API_ENDPOINTS } from "../constants/api";
+import { createAsyncThunk } from "@reduxjs/toolkit";
 
-export const fetchWalletBalances =
-  () => async (dispatch: AppDispatch, getState: () => RootState) => {
-    dispatch(setBalances({ balances: [], isLoading: true, error: null }));
+// 1. Definiujemy interfejs dla argumentów, które przekazujemy z komponentu WalletScreen
+interface FetchBalancesArgs {
+  token: string;
+  userId: string;
+}
 
+interface Balance {
+  waluta_skrot: string;
+  saldo: number;
+}
+
+const API_URL = "https://kantoronline.netlify.app/.netlify/functions";
+
+export const fetchWalletBalances = createAsyncThunk(
+  "wallet/fetchBalances",
+
+  async ({ token, userId }: FetchBalancesArgs, { rejectWithValue }) => {
     try {
-      const userId = getState().auth.userId;
-      if (!userId) {
-        throw new Error("Brak ID użytkownika. Zaloguj się ponownie.");
-      }
-
-      const response = await fetch(API_ENDPOINTS.WALLET_BALANCES, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
+      const response = await fetch(
+        `${API_URL}/wallet-balances?userId=${userId}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Błąd podczas pobierania sald.");
+        return rejectWithValue(
+          errorData.message || "Nie udało się pobrać sald."
+        );
       }
 
       const data = await response.json();
 
-      const mappedBalances: Balance[] = data.balances.map((b: any) => ({
-        waluta_skrot: b.waluta_skrot,
-        saldo: Number(b.saldo ?? 0),
-      }));
-
-      dispatch(
-        setBalances({
-          balances: mappedBalances,
-          isLoading: false,
-          error: null,
-        })
-      );
+      return data.balances as Balance[];
     } catch (error: any) {
-      dispatch(
-        setBalances({
-          balances: [],
-          isLoading: false,
-          error: error.message,
-        })
-      );
+      return rejectWithValue(error.message || "Błąd sieci.");
     }
-  };
+  }
+);

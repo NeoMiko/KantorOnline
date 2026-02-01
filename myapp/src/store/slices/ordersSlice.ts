@@ -18,28 +18,8 @@ interface OrdersState {
 }
 
 const initialState: OrdersState = {
-  pendingOrders: [
-    {
-      id: 1,
-      waluta_skrot: "EUR",
-      typ: "KUPNO",
-      kwota: 500,
-      kurs_docelowy: 4.52,
-      status: "OCZEKUJACE",
-      data_utworzenia: new Date().toISOString(),
-    },
-  ],
-  history: [
-    {
-      id: 2,
-      waluta_skrot: "USD",
-      typ: "SPRZEDAZ",
-      kwota: 200,
-      kurs_docelowy: 4.12,
-      status: "ZREALIZOWANE",
-      data_utworzenia: new Date().toISOString(),
-    },
-  ],
+  pendingOrders: [],
+  history: [],
   isLoading: false,
   error: null,
 };
@@ -48,14 +28,32 @@ const ordersSlice = createSlice({
   name: "orders",
   initialState,
   reducers: {
+    fetchOrdersStart: (state) => {
+      state.isLoading = true;
+      state.error = null;
+    },
     setOrders: (state, action: PayloadAction<Order[]>) => {
+      // Rozdzielamy zlecenia na aktywne i historyczne
       state.pendingOrders = action.payload.filter(
         (o) => o.status === "OCZEKUJACE"
       );
       state.history = action.payload.filter((o) => o.status !== "OCZEKUJACE");
+      state.isLoading = false;
+    },
+    fetchOrdersError: (state, action: PayloadAction<string>) => {
+      state.isLoading = false;
+      state.error = action.payload;
+    },
+
+    removeOrder: (state, action: PayloadAction<number>) => {
+      state.pendingOrders = state.pendingOrders.filter(
+        (o) => o.id !== action.payload
+      );
     },
   },
 });
 
-export const { setOrders } = ordersSlice.actions;
+export const { setOrders, fetchOrdersStart, fetchOrdersError, removeOrder } =
+  ordersSlice.actions;
+
 export default ordersSlice.reducer;

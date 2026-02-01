@@ -10,10 +10,10 @@ import { Handler } from "./types/types";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
-const walletHandler: Handler = async (
+const balanceHandler: Handler = async (
   event: HandlerEvent,
   context: HandlerContext
 ): Promise<HandlerResponse> => {
@@ -32,12 +32,15 @@ const walletHandler: Handler = async (
       return {
         statusCode: 400,
         headers: CORS_HEADERS,
-        body: JSON.stringify({ message: "Brak userId w zapytaniu." }),
+        body: JSON.stringify({ message: "Brak identyfikatora użytkownika." }),
       };
     }
 
     const result = await query(
-      "SELECT waluta_skrot, saldo FROM temp_balances WHERE user_id = $1 ORDER BY waluta_skrot ASC",
+      `SELECT waluta_skrot, saldo 
+         FROM temp_balances 
+         WHERE user_id = $1 
+         ORDER BY waluta_skrot ASC`,
       [userId]
     );
 
@@ -47,16 +50,22 @@ const walletHandler: Handler = async (
         ...CORS_HEADERS,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ balances: result.rows }),
+      body: JSON.stringify({
+        success: true,
+        balances: result.rows,
+      }),
     };
   } catch (error: any) {
-    console.error("BŁĄD WALLET-BALANCES:", error.message);
+    console.error("BŁĄD BALANCE-GET:", error.message);
     return {
       statusCode: 500,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ message: error.message }),
+      body: JSON.stringify({
+        success: false,
+        message: "Błąd podczas pobierania salda portfela.",
+      }),
     };
   }
 };
 
-export const handler = authenticatedHandler(walletHandler);
+export const handler = authenticatedHandler(balanceHandler);
